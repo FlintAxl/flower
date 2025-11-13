@@ -10,7 +10,9 @@ const {
     getProducts,
     productSales,
     createProductReview,
+    updateProductReview,
     getProductReviews,
+    checkReviewEligibility,
     deleteReview,
     bulkDeleteProducts,
     } = require('../controllers/product');
@@ -28,6 +30,8 @@ router.get('/products', getProducts)
 router.get('/admin/product-sales', productSales);
 
 router.put('/review', isAuthenticatedUser, createProductReview);
+router.patch('/review/update', isAuthenticatedUser, updateProductReview);
 router.get('/reviews',isAuthenticatedUser, getProductReviews)
+router.get('/review/eligibility', isAuthenticatedUser, checkReviewEligibility)
 router.delete('/reviews', isAuthenticatedUser, authorizeRoles('admin'), deleteReview)
 module.exports = router

@@ -48,9 +48,9 @@ const Sidebar = () => {
             <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
                 {/* Dashboard */}
                 <Link
-                    to="/admin/dashboard"
+                    to="/dashboard"
                     className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-                        isActive('/admin/dashboard')
+                        isActive('dashboard')
                             ? 'bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-400 dark:to-indigo-400 text-white shadow-md'
                             : 'text-gray-700 dark:text-ink hover:bg-purple-50 dark:hover:bg-purple-900/20'
                     }`}

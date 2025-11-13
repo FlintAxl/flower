@@ -6,7 +6,7 @@ import Loader from '../Layout/Loader'
 import Sidebar from './SideBar'
 // import Toast from '../Layout/Toast'
 import Swal from 'sweetalert2'
-import { getUser, getToken, errMsg } from '../../utils/helpers'
+import { getUser, getToken, errMsg } from '../../Utils/helpers'
 import axios from 'axios'
 import { DataGrid, } from '@mui/x-data-grid'
 
@@ -37,9 +37,9 @@ const ProductReviews = () => {
             setError(error.response.data.message)
         }
     }
-    const deleteReview = async (id, productId) => {
+    const deleteReview = async (reviewId, productId) => {
         try {
-            const { data } = await axios.delete(`${import.meta.env.VITE_API}/reviews?id=${id}&productId=${productId}`, config)
+            const { data } = await axios.delete(`${import.meta.env.VITE_API}/reviews?reviewId=${reviewId}&productId=${productId}`, config)
             setIsDeleted(data.success)
 
         } catch (error) {

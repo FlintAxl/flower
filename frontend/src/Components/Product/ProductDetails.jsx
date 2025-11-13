@@ -4,7 +4,7 @@ import MetaData from "../Layout/MetaData";
 import { Carousel } from "react-bootstrap";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { getUser, getToken, successMsg, errMsg } from '../../utils/helpers'
+import { getUser, getToken, successMsg, errMsg } from '../../Utils/helpers'
 import ListReviews from '../Review/ListReviews';
 import axios from "axios";
 
@@ -21,15 +21,66 @@ const ProductDetails = ({ addItemToCart, cartItems }) => {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [showReviewModal, setShowReviewModal] = useState(false)
+  const [userReview, setUserReview] = useState(null)
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [canReview, setCanReview] = useState(false)
+  const [reviewEligibilityMessage, setReviewEligibilityMessage] = useState('')
+  const [checkingEligibility, setCheckingEligibility] = useState(false)
 
   const { id } = useParams();
   let navigate = useNavigate();
+
+  // Check if user can review this product
+  const checkReviewEligibility = async (productId) => {
+    if (!user) {
+      setCanReview(false)
+      setReviewEligibilityMessage('Please login to review products')
+      return
+    }
+
+    try {
+      setCheckingEligibility(true)
+      const config = {
+        headers: {
+          'Authorization': `Bearer ${getToken()}`
+        }
+      }
+
+      const { data } = await axios.get(
+        `${import.meta.env.VITE_API}/review/eligibility?productId=${productId}`,
+        config
+      )
+
+      setCanReview(data.canReview)
+      setReviewEligibilityMessage(data.message)
+    } catch (error) {
+      setCanReview(false)
+      setReviewEligibilityMessage(
+        error.response?.data?.message || 'Unable to check review eligibility'
+      )
+    } finally {
+      setCheckingEligibility(false)
+    }
+  }
 
   // fetch product
   const productDetails = async (id) => {
     try {
       const { data } = await axios.get(`http://localhost:4001/api/v1/product/${id}`);
       setProduct(data.product || {});
+      
+      // Check if user has already reviewed this product
+      if (user && data.product.reviews) {
+        const existingReview = data.product.reviews.find(
+          review => review.user === user._id
+        );
+        setUserReview(existingReview || null);
+      }
+
+      // Check review eligibility
+      if (user && data.product._id) {
+        checkReviewEligibility(data.product._id)
+      }
     } catch (err) {
       console.error(err);
       setError('Product not found')
@@ -120,6 +171,7 @@ const ProductDetails = ({ addItemToCart, cartItems }) => {
 
   const newReview = async (reviewData) => {
     try {
+      setSubmittingReview(true)
       const config = {
         headers: {
           'Content-Type': 'application/json',
@@ -128,10 +180,21 @@ const ProductDetails = ({ addItemToCart, cartItems }) => {
       }
 
       const { data } = await axios.put(`${import.meta.env.VITE_API}/review`, reviewData, config)
-      setSuccess(data.success)
-
+      
+      if (data.success) {
+        setSuccess(true)
+        successMsg('Review submitted successfully!')
+        setShowReviewModal(false)
+        setRating(0)
+        setComment('')
+        // Refresh product data
+        productDetails(id)
+      }
     } catch (error) {
-      setErrorReview(error.response.data.message)
+      setErrorReview(error.response?.data?.message || 'Error submitting review')
+      errMsg(error.response?.data?.message || 'Error submitting review')
+    } finally {
+      setSubmittingReview(false)
     }
   }
 
@@ -392,17 +455,50 @@ const ProductDetails = ({ addItemToCart, cartItems }) => {
             {/* Review Section */}
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-purple-500/20">
               {user ? (
-                <button 
-                  id="review_btn" 
-                  type="button" 
-                  className="w-full py-3 px-4 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition font-semibold flex items-center justify-center gap-2"
-                  onClick={openReviewModal}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                  Submit Your Review
-                </button>
+                <div className="space-y-3">
+                  {checkingEligibility ? (
+                    <div className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg flex items-center justify-center gap-2">
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Checking review eligibility...
+                    </div>
+                  ) : canReview ? (
+                    <button 
+                      id="review_btn" 
+                      type="button" 
+                      className={`w-full py-3 px-4 rounded-lg transition font-semibold flex items-center justify-center gap-2 ${
+                        userReview 
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                          : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50'
+                      }`}
+                      onClick={openReviewModal}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.915a1 1 0 00.95-.69l1.519-4.674z" />
+                      </svg>
+                      {userReview ? 'You have reviewed this product' : 'Write a Review'}
+                    </button>
+                  ) : (
+                    <div className="w-full py-3 px-4 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg border border-orange-200 dark:border-orange-800 flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      <span className="font-medium">Cannot Review</span>
+                    </div>
+                  )}
+                  
+                  {reviewEligibilityMessage && (
+                    <p className={`text-sm text-center ${
+                      canReview 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : 'text-orange-600 dark:text-orange-400'
+                    }`}>
+                      {reviewEligibilityMessage}
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="alert alert-danger mt-5 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-800">
                   Login to post your review.
@@ -414,11 +510,13 @@ const ProductDetails = ({ addItemToCart, cartItems }) => {
       </div>
 
       {/* List Reviews Component */}
-      {product.reviews && product.reviews.length > 0 && (
-        <div className="max-w-2xl mx-auto px-4 md:px-6 mt-8">
-          <ListReviews reviews={product.reviews} />
-        </div>
-      )}
+      <div className="max-w-4xl mx-auto px-4 md:px-6 mt-8">
+        <ListReviews 
+          reviews={product.reviews || []} 
+          productId={product._id}
+          onReviewUpdate={() => productDetails(id)}
+        />
+      </div>
     </>
   );
 };

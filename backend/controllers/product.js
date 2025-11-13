@@ -4,6 +4,23 @@ const Order = require('../models/order');
 const cloudinary = require('cloudinary')
 const APIFeatures = require('../utils/apiFeatures');
 
+// Helper function to check if user can review a product
+const canUserReviewProduct = async (userId, productId) => {
+    try {
+        // Find orders where user bought this product and order is delivered
+        const deliveredOrder = await Order.findOne({
+            user: userId,
+            orderStatus: 'Delivered',
+            'orderItems.product': productId
+        });
+        
+        return !!deliveredOrder; // Returns true if found, false otherwise
+    } catch (error) {
+        console.error('Error checking review eligibility:', error);
+        return false;
+    }
+};
+
 
 
 exports.newProduct = async (req, res, next) => {
@@ -233,38 +250,131 @@ exports.productSales = async (req, res, next) => {
 }
 
 exports.createProductReview = async (req, res, next) => {
-	const { rating, comment, productId } = req.body;
-	const review = {
-		user: req.user._id,
-		name: req.user.name,
-		rating: Number(rating),
-		comment
-	}
-	const product = await Product.findById(productId);
-	const isReviewed = product.reviews.find(
-		r => r.user.toString() === req.user._id.toString()
-	)
-	if (isReviewed) {
-		product.reviews.forEach(review => {
-			if (review.user.toString() === req.user._id.toString()) {
-				review.comment = comment;
-				review.rating = rating;
-			}
-		})
-	} else {
+	try {
+		const { rating, comment, productId } = req.body;
+		
+		if (!rating || !comment || !productId) {
+			return res.status(400).json({
+				success: false,
+				message: 'Please provide rating, comment, and product ID'
+			});
+		}
+
+		const product = await Product.findById(productId);
+		if (!product) {
+			return res.status(404).json({
+				success: false,
+				message: 'Product not found'
+			});
+		}
+
+		// Check if user can review this product (must have ordered and received it)
+		const canReview = await canUserReviewProduct(req.user._id, productId);
+		if (!canReview) {
+			return res.status(403).json({
+				success: false,
+				message: 'You can only review products you have purchased and received (order status: Delivered)'
+			});
+		}
+
+		const isReviewed = product.reviews.find(
+			r => r.user.toString() === req.user._id.toString()
+		);
+
+		if (isReviewed) {
+			return res.status(400).json({
+				success: false,
+				message: 'You have already reviewed this product. Use update review instead.'
+			});
+		}
+
+		const review = {
+			user: req.user._id,
+			name: req.user.name,
+			rating: Number(rating),
+			comment,
+			createdAt: new Date()
+		};
+
 		product.reviews.push(review);
-		product.numOfReviews = product.reviews.length
-	}
-	product.ratings = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length
-	await product.save({ validateBeforeSave: false });
-	if (!product)
-		return res.status(400).json({
+		product.numOfReviews = product.reviews.length;
+		product.ratings = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+
+		await product.save({ validateBeforeSave: false });
+
+		return res.status(201).json({
+			success: true,
+			message: 'Review added successfully',
+			review: product.reviews[product.reviews.length - 1]
+		});
+	} catch (error) {
+		return res.status(500).json({
 			success: false,
-			message: 'review not posted'
-		})
-	return res.status(200).json({
-		success: true
-	})
+			message: error.message || 'Error creating review'
+		});
+	}
+}
+
+exports.updateProductReview = async (req, res, next) => {
+	try {
+		const { rating, comment, productId } = req.body;
+		
+		if (!rating || !comment || !productId) {
+			return res.status(400).json({
+				success: false,
+				message: 'Please provide rating, comment, and product ID'
+			});
+		}
+
+		const product = await Product.findById(productId);
+		if (!product) {
+			return res.status(404).json({
+				success: false,
+				message: 'Product not found'
+			});
+		}
+
+		// Check if user can review this product (must have ordered and received it)
+		const canReview = await canUserReviewProduct(req.user._id, productId);
+		if (!canReview) {
+			return res.status(403).json({
+				success: false,
+				message: 'You can only review products you have purchased and received (order status: Delivered)'
+			});
+		}
+
+		const reviewIndex = product.reviews.findIndex(
+			r => r.user.toString() === req.user._id.toString()
+		);
+
+		if (reviewIndex === -1) {
+			return res.status(404).json({
+				success: false,
+				message: 'Review not found. Please create a review first.'
+			});
+		}
+
+		// Update the existing review
+		product.reviews[reviewIndex].rating = Number(rating);
+		product.reviews[reviewIndex].comment = comment;
+		product.reviews[reviewIndex].updatedAt = new Date();
+
+		// Recalculate ratings
+		product.ratings = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+
+		await product.save({ validateBeforeSave: false });
+
+		return res.status(200).json({
+			success: true,
+			message: 'Review updated successfully',
+			review: product.reviews[reviewIndex]
+		});
+	} catch (error) {
+		return res.status(500).json({
+			success: false,
+			message: error.message || 'Error updating review'
+		});
+	}
 }
 
 exports.getProductReviews = async (req, res, next) => {
@@ -275,27 +385,89 @@ exports.getProductReviews = async (req, res, next) => {
     })
 }
 
+exports.checkReviewEligibility = async (req, res, next) => {
+    try {
+        const { productId } = req.query;
+        
+        if (!productId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product ID is required'
+            });
+        }
+
+        const canReview = await canUserReviewProduct(req.user._id, productId);
+        
+        return res.status(200).json({
+            success: true,
+            canReview: canReview,
+            message: canReview 
+                ? 'You can review this product' 
+                : 'You can only review products you have purchased and received'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Error checking review eligibility'
+        });
+    }
+}
+
 exports.deleteReview = async (req, res, next) => {
-    console.log(req.query)
-    const product = await Product.findById(req.query.productId);
-    const reviews = product.reviews.filter(review => review._id.toString() !== req.query.id.toString());
-    const numOfReviews = reviews.length;
+    try {
+        const { productId, reviewId } = req.query;
 
-    const ratings = product.reviews.reduce((acc, item) => item.rating + acc, 0) / reviews.length
+        if (!productId || !reviewId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide product ID and review ID'
+            });
+        }
 
-    await Product.findByIdAndUpdate(req.query.productId, {
-        reviews,
-        ratings,
-        numOfReviews
-    }, {
-        new: true,
-        runValidators: true,
-        useFindAndModify: false
-    })
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
 
-    return res.status(200).json({
-        success: true
-    })
+        const reviewExists = product.reviews.find(review => review._id.toString() === reviewId);
+        if (!reviewExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        const reviews = product.reviews.filter(review => review._id.toString() !== reviewId);
+        const numOfReviews = reviews.length;
+
+        // Recalculate ratings only if there are remaining reviews
+        const ratings = numOfReviews > 0 
+            ? reviews.reduce((acc, item) => item.rating + acc, 0) / numOfReviews 
+            : 0;
+
+        await Product.findByIdAndUpdate(productId, {
+            reviews,
+            ratings,
+            numOfReviews
+        }, {
+            new: true,
+            runValidators: true,
+            useFindAndModify: false
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Review deleted successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Error deleting review'
+        });
+    }
 }
 
 exports.bulkDeleteProducts = async (req, res, next) => {
