@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: 'user'
     },
+    firebaseUid: {
+        type: String,
+        sparse: true // Allows null values and creates sparse index
+    },
     createdAt: {
         type: Date,
         default: Date.now

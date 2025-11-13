@@ -214,22 +214,6 @@ exports.allUsers = async (req, res, next) => {
     })
 }
 
-exports.deleteUser = async (req, res, next) => {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-        return res.status(401).json({ message: `User does not found with id: ${req.params.id}` })
-        // return next(new ErrorHandler(`User does not found with id: ${req.params.id}`))
-    }
-
-    // Remove avatar from cloudinary
-    const image_id = user.avatar.public_id;
-    await cloudinary.v2.uploader.destroy(image_id);
-    await User.findByIdAndDelete(req.params.id);
-    return res.status(200).json({
-        success: true,
-    })
-}
 
 exports.getUserDetails = async (req, res, next) => {
     const user = await User.findById(req.params.id);
@@ -261,4 +245,100 @@ exports.updateUser = async (req, res, next) => {
     return res.status(200).json({
         success: true
     })
+}
+
+exports.createUserByAdmin = async (req, res, next) => {
+    try {
+        const { name, email, password, role, avatar, firebaseUid } = req.body;
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'User with this email already exists'
+            });
+        }
+
+        let avatarData = {
+            public_id: 'default_avatar',
+            url: '/images/default_avatar.jpg'
+        };
+
+        // Handle avatar upload if provided
+        if (avatar && avatar !== '/images/default_avatar.jpg') {
+            const result = await cloudinary.v2.uploader.upload(avatar, {
+                folder: 'avatars',
+                width: 150,
+                crop: "scale"
+            });
+            
+            avatarData = {
+                public_id: result.public_id,
+                url: result.secure_url
+            };
+        }
+
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: role || 'user',
+            avatar: avatarData,
+            firebaseUid: firebaseUid || null
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: 'User created successfully',
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar
+            }
+        });
+    } catch (error) {
+        console.error('Create user error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Error creating user'
+        });
+    }
+}
+
+exports.bulkDeleteUsers = async (req, res, next) => {
+    try {
+        const { userIds } = req.body;
+        
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide valid user IDs'
+            });
+        }
+
+        // Delete users from database
+        const result = await User.deleteMany({ _id: { $in: userIds } });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No users found to delete'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `${result.deletedCount} users deleted successfully`,
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        console.error('Bulk delete users error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error deleting users'
+        });
+    }
 }
