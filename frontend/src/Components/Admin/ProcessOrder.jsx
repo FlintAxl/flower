@@ -7,12 +7,13 @@ import Sidebar from './SideBar'
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios'
-import { getToken } from '../../utils/helpers'
+import { getToken } from '../../Utils/helpers'
 
 const ProcessOrder = () => {
 
     const [status, setStatus] = useState('')
     const [loading, setLoading] = useState(true)
+    const [updating, setUpdating] = useState(false)
     const [error, setError] = useState('')
     const [order, setOrder] = useState({})
     const [isUpdated, setIsUpdated] = useState(false)
@@ -26,7 +27,12 @@ const ProcessOrder = () => {
     });
 
     const successMsg = (message = '') => toast.success(message, {
-        position: 'bottom-center'
+        position: 'bottom-center',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
     });
 
     const getOrderDetails = async (id) => {
@@ -46,7 +52,7 @@ const ProcessOrder = () => {
         }
     }
     const updateOrder = async (id, formData) => {
-      
+        setUpdating(true);
         try {
             const config = {
                 headers: {
@@ -55,11 +61,12 @@ const ProcessOrder = () => {
                 }
             }
             const { data } = await axios.put(`${import.meta.env.VITE_API}/admin/order/${id}`, formData, config)
-            setIsUpdated(data.success)
-            
+            setIsUpdated(data)
+            setUpdating(false);
 
         } catch (error) {
             setError(error.response.data.message)
+            setUpdating(false);
         }
     }
 
@@ -69,9 +76,11 @@ const ProcessOrder = () => {
             errMsg(error);
             setError('')
         }
-        if (isUpdated) {
-            successMsg('Order updated successfully');
-            setIsUpdated('')
+        if (isUpdated && isUpdated.success) {
+            // Show detailed success message including email notification status
+            const message = isUpdated.message || 'Order updated successfully';
+            successMsg(message);
+            setIsUpdated(false)
             navigate('/admin/orders')
         }
     }, [error, isUpdated, orderId])
@@ -147,8 +156,22 @@ const ProcessOrder = () => {
                                             <option value="Delivered">Delivered</option>
                                         </select>
                                     </div>
-                                    <button className="btn btn-primary btn-block" onClick={() => updateOrderHandler(order._id)}>
-                                        Update Status
+                                    <button 
+                                        className="btn btn-primary btn-block" 
+                                        onClick={() => updateOrderHandler(order._id)}
+                                        disabled={updating || !status}
+                                    >
+                                        {updating ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                {status === 'Shipped' || status === 'Delivered' ? 
+                                                    `Updating to ${status} & Sending Email...` : 
+                                                    `Updating to ${status}...`
+                                                }
+                                            </>
+                                        ) : (
+                                            'Update Status'
+                                        )}
                                     </button>
                                 </div>
                             </div>

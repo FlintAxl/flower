@@ -1,5 +1,8 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
+const User = require('../models/user');
+const { sendOrderStatusEmail } = require('../utils/emailService');
+const { generateOrderReceipt } = require('../utils/pdfGenerator');
 
 
 
@@ -90,25 +93,88 @@ exports.deleteOrder = async (req, res, next) => {
 }
 
 exports.updateOrder = async (req, res, next) => {
-    const order = await Order.findById(req.params.id)
-    console.log(req.body.order)
-    if (order.orderStatus === 'Delivered') {
-        return res.status(400).json({
-            message: 'You have already delivered this order',
+    try {
+        const order = await Order.findById(req.params.id).populate('orderItems.product');
+        
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        console.log(req.body.order)
+        if (order.orderStatus === 'Delivered') {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already delivered this order'
+            });
+        }
 
-        })
+        // Get user information for email
+        const user = await User.findById(order.user);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const oldStatus = order.orderStatus;
+        const newStatus = req.body.status;
+
+        // Update stock for delivered orders
+        if (newStatus === 'Delivered') {
+            order.orderItems.forEach(async item => {
+                await updateStock(item.product, item.quantity)
+            });
+            order.deliveredAt = Date.now();
+        }
+
+        // Update order status
+        order.orderStatus = newStatus;
+        await order.save();
+
+        // Send email notification for Shipped or Delivered status
+        if (newStatus === 'Shipped' || newStatus === 'Delivered') {
+            let pdfPath = null;
+            
+            // Generate PDF receipt for delivered orders
+            if (newStatus === 'Delivered') {
+                console.log('Generating PDF receipt for delivered order...');
+                const pdfResult = await generateOrderReceipt({ order, user });
+                if (pdfResult.success) {
+                    pdfPath = pdfResult.pdfPath;
+                    console.log('PDF receipt generated successfully');
+                } else {
+                    console.error('Failed to generate PDF:', pdfResult.error);
+                }
+            }
+            
+            // Send email notification
+            console.log(`Sending ${newStatus} email notification to ${user.email}...`);
+            const emailResult = await sendOrderStatusEmail({ order, user }, pdfPath);
+            
+            if (emailResult.success) {
+                console.log('Email sent successfully:', emailResult.messageId);
+            } else {
+                console.error('Failed to send email:', emailResult.error);
+                // Don't fail the order update if email fails
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Order status updated to ${newStatus}${newStatus === 'Shipped' || newStatus === 'Delivered' ? '. Email notification sent.' : ''}`
+        });
+        
+    } catch (error) {
+        console.error('Error updating order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating order'
+        });
     }
-
-    order.orderItems.forEach(async item => {
-        await updateStock(item.product, item.quantity)
-    })
-
-    order.orderStatus = req.body.status
-    order.deliveredAt = Date.now()
-    await order.save()
-    res.status(200).json({
-        success: true,
-    })
 }
 
 async function updateStock(id, quantity) {
