@@ -7,12 +7,12 @@ const {
     getSingleProduct,
     getAdminProducts,
     updateProduct,
-    deleteProduct,
     getProducts,
     productSales,
     createProductReview,
     getProductReviews,
     deleteReview,
+    bulkDeleteProducts,
     } = require('../controllers/product');
 
     const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth')
@@ -22,7 +22,7 @@ router.get('/product/:id', getSingleProduct)
 router.get('/admin/products', isAuthenticatedUser, authorizeRoles('admin'), getAdminProducts);
 
 router.put('/admin/product/:id', upload.array('images', 10), updateProduct);
-router.delete('/admin/product/:id', deleteProduct);
+router.delete('/admin/products/bulk', isAuthenticatedUser, authorizeRoles('admin'), bulkDeleteProducts);
 
 router.get('/products', getProducts)
 router.get('/admin/product-sales', productSales);

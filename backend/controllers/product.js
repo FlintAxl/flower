@@ -138,20 +138,6 @@ exports.updateProduct = async (req, res, next) => {
         })
     }
 }
-exports.deleteProduct = async (req, res, next) => {
-    const product = await Product.findByIdAndDelete(req.params.id);
-    if (!product) {
-        return res.status(404).json({
-            success: false,
-            message: 'Product not found'
-        })
-    }
-
-    return res.status(200).json({
-        success: true,
-        message: 'Product deleted'
-    })
-}
 
 exports.getProducts = async (req, res) => {
 
@@ -187,31 +173,6 @@ exports.getProducts = async (req, res) => {
     // })
 }
 
-exports.getAdminProducts = async (req, res, next) => {
-
-	const products = await Product.find();
-
-	res.status(200).json({
-		success: true,
-		products
-	})
-
-}
-
-exports.deleteProduct = async (req, res, next) => {
-	const product = await Product.findByIdAndDelete(req.params.id);
-	if (!product) {
-		return res.status(404).json({
-			success: false,
-			message: 'Product not found'
-		})
-	}
-
-	res.status(200).json({
-		success: true,
-		message: 'Product deleted'
-	})
-}
 
 exports.productSales = async (req, res, next) => {
     const totalSales = await Order.aggregate([
@@ -335,5 +296,40 @@ exports.deleteReview = async (req, res, next) => {
     return res.status(200).json({
         success: true
     })
+}
+
+exports.bulkDeleteProducts = async (req, res, next) => {
+    try {
+        const { productIds } = req.body;
+        
+        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide valid product IDs'
+            });
+        }
+
+        // Delete products from database
+        const result = await Product.deleteMany({ _id: { $in: productIds } });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No products found to delete'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `${result.deletedCount} products deleted successfully`,
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        console.error('Bulk delete error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error deleting products'
+        });
+    }
 }
 
