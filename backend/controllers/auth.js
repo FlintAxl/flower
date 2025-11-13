@@ -6,68 +6,154 @@ const cloudinary = require('cloudinary')
 const sendEmail = require('../utils/sendEmail')
 
 exports.registerUser = async (req, res, next) => {
-console.log(req.body)
-    const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
-        folder: 'avatars',
-        width: 150,
-        crop: "scale"
-    }, (err, res) => {
-        console.log(err, res);
-    });
-    const { name, email, password, } = req.body;
-    const user = await User.create({
-        name,
-        email,
-        password,
-        avatar: {
-            public_id: result.public_id,
-            url: result.secure_url
-        },
-    })
-    //test token
-    const token = user.getJwtToken();
+    try {
+        console.log(req.body)
+        const { name, email, password, firebaseUid, isGoogleSignup, isGoogleLogin, avatarUrl } = req.body;
 
-    return res.status(201).json({
-        success: true,
-        user,
-        token
-    })
-    // sendToken(user, 200, res)
+        // Check if user already exists (for Google login attempts)
+        if (isGoogleLogin === 'true') {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                // User exists, return login data
+                const token = existingUser.getJwtToken();
+                return res.status(200).json({
+                    success: true,
+                    user: existingUser,
+                    token,
+                    message: 'User logged in successfully'
+                });
+            }
+        }
+
+        // Check if user already exists (for regular registration)
+        const existingUser = await User.findOne({ email });
+        if (existingUser && isGoogleSignup !== 'true' && isGoogleLogin !== 'true') {
+            return res.status(400).json({
+                success: false,
+                message: 'User with this email already exists'
+            });
+        }
+
+        let avatarData = {
+            public_id: 'default_avatar',
+            url: '/images/default_avatar.jpg'
+        };
+
+        // Handle Google profile picture
+        if (isGoogleSignup === 'true' || isGoogleLogin === 'true') {
+            if (avatarUrl) {
+                try {
+                    // Upload Google profile picture to Cloudinary
+                    const result = await cloudinary.v2.uploader.upload(avatarUrl, {
+                        folder: 'avatars',
+                        width: 150,
+                        crop: "scale"
+                    });
+                    
+                    avatarData = {
+                        public_id: result.public_id,
+                        url: result.secure_url
+                    };
+                } catch (cloudinaryError) {
+                    console.log('Cloudinary upload failed for Google avatar, using default:', cloudinaryError);
+                    // Keep default avatar if Cloudinary upload fails
+                }
+            }
+        } else {
+            // Handle regular avatar upload
+            if (req.body.avatar && req.body.avatar !== '/images/default_avatar.jpg') {
+                const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
+                    folder: 'avatars',
+                    width: 150,
+                    crop: "scale"
+                });
+                
+                avatarData = {
+                    public_id: result.public_id,
+                    url: result.secure_url
+                };
+            }
+        }
+
+        const user = await User.create({
+            name,
+            email,
+            password,
+            avatar: avatarData,
+            firebaseUid: firebaseUid || null
+        });
+
+        const token = user.getJwtToken();
+
+        return res.status(201).json({
+            success: true,
+            user,
+            token,
+            message: isGoogleSignup === 'true' ? 'Google registration successful' : 'Registration successful'
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Registration failed'
+        });
+    }
 }
 
 exports.loginUser = async (req, res, next) => {
-    const { email, password } = req.body;
+    try {
+        const { email, password, firebaseUid, isGoogleLogin } = req.body;
 
-    // Checks if email and password is entered by user
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Please enter email & password' })
+        // For Google login, we don't need password validation
+        if (isGoogleLogin === 'true') {
+            let user = await User.findOne({ email });
+            if (!user) {
+                return res.status(401).json({ message: 'User not found. Please register first.' });
+            }
+
+            const token = user.getJwtToken();
+            return res.status(200).json({
+                success: true,
+                token,
+                user,
+                message: 'Google login successful'
+            });
+        }
+
+        // Regular email/password login
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Please enter email & password' });
+        }
+
+        // Finding user in database
+        let user = await User.findOne({ email }).select('+password');
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid Email or Password' });
+        }
+
+        // Checks if password is correct or not
+        const isPasswordMatched = await user.comparePassword(password);
+        if (!isPasswordMatched) {
+            return res.status(401).json({ message: 'Invalid Email or Password' });
+        }
+
+        const token = user.getJwtToken();
+
+        res.status(200).json({
+            success: true,
+            token,
+            user,
+            message: 'Login successful'
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Login failed'
+        });
     }
-
-
-    // Finding user in database
-
-    let user = await User.findOne({ email }).select('+password')
-    if (!user) {
-        return res.status(401).json({ message: 'Invalid Email or Password' })
-    }
-
-
-    // Checks if password is correct or not
-    const isPasswordMatched = await user.comparePassword(password);
-
-
-    if (!isPasswordMatched) {
-        return res.status(401).json({ message: 'Invalid Email or Password' })
-    }
-    const token = user.getJwtToken();
-
-    res.status(201).json({
-        success: true,
-        token,
-        user
-    });
-    //  user = await User.findOne({ email })
-    // sendToken(user, 200, res)
 }
 
 exports.forgotPassword = async (req, res, next) => {

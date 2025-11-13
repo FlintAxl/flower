@@ -45,8 +45,8 @@ pagination on products list on homepage. 10pts
 infinite scroll on products list on homepage. 15pts 
 
 quiz 4 
-facebook or gmail login 15pts react-facebook-login or similar packages. || MAYBE?  gmail in firebase
-facebook or gmail login using firebase 15pts || MAYBE? gmail in firebase
+facebook or gmail login 15pts react-facebook-login or similar packages. || DONE (except facebook)
+facebook or gmail login using firebase 15pts || DONE (except facebook)
 
 term test LEC
 functional requirements completeness 10pts

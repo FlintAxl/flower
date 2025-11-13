@@ -91,8 +91,10 @@ const Register = () => {
            
             setLoading(false)
             setUser(data.user)
-            successMsg('Registration successful! User created in both Firebase and database.')
-            navigate('/')
+            authenticate(data, () => {
+                successMsg('Registration successful! User created in both Firebase and database.')
+                navigate('/me')
+            })
 
         } catch (error) {
             setLoading(false)
@@ -203,7 +205,7 @@ const Register = () => {
             setUser(data.user)
             authenticate(data, () => {
                 successMsg('Google registration successful!')
-                navigate('/')
+                navigate('/me')
             })
             console.log('Registration completed successfully!')
 

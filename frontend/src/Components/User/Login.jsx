@@ -98,67 +98,87 @@ const Login = () => {
             const firebaseUser = await firebaseGoogleSignIn();
             console.log('Google user signed in:', firebaseUser);
             
-            // Check if user exists in your backend, if not create them
-            const config = {
+            // Try to login first (check if user exists)
+            const loginConfig = {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             }
             
-            // For Google login, always try to register first
-            // If user exists, backend should return user data instead of error
-            const registerConfig = {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            }
-            
-            const formData = new FormData();
-            formData.set('name', firebaseUser.displayName || firebaseUser.email.split('@')[0]);
-            formData.set('email', firebaseUser.email);
-            formData.set('firebaseUid', firebaseUser.uid);
-            formData.set('isGoogleLogin', 'true'); // Changed from isGoogleSignup
-            
-            // Auto-generate a secure password for Google users (they won't use it for login)
-            const autoPassword = `Google_${firebaseUser.uid.substring(0, 10)}_${Date.now()}`;
-            formData.set('password', autoPassword);
-            
-            // Handle avatar - send Google photo URL and create empty file blob for required file parameter
-            if (firebaseUser.photoURL) {
-                formData.set('avatarUrl', firebaseUser.photoURL);
-            }
-            
-            // Create a proper File object (not just Blob)
-            const emptyFileContent = new Uint8Array([
-                0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
-                0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
-                0x00, 0xFF, 0xD9
-            ]);
-            const emptyFile = new File([emptyFileContent], 'empty-avatar.jpg', { 
-                type: 'image/jpeg',
-                lastModified: Date.now()
-            });
-            
-            formData.set('avatar', emptyFile);
-            
             try {
-                const { data } = await axios.post(`http://localhost:4001/api/v1/register`, formData, registerConfig);
+                // First, try to login with existing user
+                const loginData = {
+                    email: firebaseUser.email,
+                    firebaseUid: firebaseUser.uid,
+                    isGoogleLogin: 'true'
+                };
+                
+                const { data } = await axios.post(`http://localhost:4001/api/v1/login`, loginData, loginConfig);
                 
                 setLoading(false)
                 authenticate(data, () => {
                     successMsg('Google login successful!')
                     navigate("/me")
                 })
-            } catch (backendError) {
-                setLoading(false)
                 
-                if (backendError.response && backendError.response.status === 400) {
-                    // User might already exist - show appropriate message
-                    errMsg('User already exists or there was an issue with Google login. Please try regular login.')
+            } catch (loginError) {
+                // User doesn't exist, create new user
+                if (loginError.response && loginError.response.status === 401) {
+                    console.log('User not found, creating new user...');
+                    
+                    const registerConfig = {
+                        headers: {
+                            'Content-Type': 'multipart/form-data'
+                        }
+                    }
+                    
+                    const formData = new FormData();
+                    formData.set('name', firebaseUser.displayName || firebaseUser.email.split('@')[0]);
+                    formData.set('email', firebaseUser.email);
+                    formData.set('firebaseUid', firebaseUser.uid);
+                    formData.set('isGoogleSignup', 'true');
+                    
+                    // Auto-generate a secure password for Google users
+                    const autoPassword = `Google_${firebaseUser.uid.substring(0, 10)}_${Date.now()}`;
+                    formData.set('password', autoPassword);
+                    
+                    // Handle Google profile picture
+                    if (firebaseUser.photoURL) {
+                        formData.set('avatarUrl', firebaseUser.photoURL);
+                    }
+                    
+                    // Create empty file for avatar field requirement
+                    const emptyFileContent = new Uint8Array([
+                        0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+                        0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+                        0x00, 0xFF, 0xD9
+                    ]);
+                    const emptyFile = new File([emptyFileContent], 'empty-avatar.jpg', { 
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    formData.set('avatar', emptyFile);
+                    
+                    try {
+                        const { data } = await axios.post(`http://localhost:4001/api/v1/register`, formData, registerConfig);
+                        
+                        setLoading(false)
+                        authenticate(data, () => {
+                            successMsg('Google registration and login successful!')
+                            navigate("/me")
+                        })
+                        
+                    } catch (registerError) {
+                        setLoading(false)
+                        console.error('Google registration error:', registerError)
+                        errMsg('Failed to create Google account. Please try again.')
+                    }
+                    
                 } else {
+                    setLoading(false)
+                    console.error('Google login error:', loginError)
                     errMsg('Google login failed. Please try again.')
                 }
-                console.error('Google login error:', backendError)
             }
 
         } catch (error) {
