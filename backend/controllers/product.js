@@ -3,6 +3,35 @@ const Order = require('../models/order');
 
 const cloudinary = require('cloudinary')
 const APIFeatures = require('../utils/apiFeatures');
+const Filter = require('bad-words');
+const { getAllCustomWords } = require('../config/badwords');
+
+// Initialize bad words filter
+const filter = new Filter();
+
+// Add custom bad words from configuration file
+const customWords = getAllCustomWords();
+filter.addWords(...customWords);
+
+console.log(`Loaded ${customWords.length} custom bad words from local language`);
+
+// Helper function to filter bad words from text
+const filterBadWords = (text) => {
+    try {
+        // Clean the text and replace bad words with asterisks
+        const cleanedText = filter.clean(text);
+        
+        // Log if bad words were found (for monitoring purposes)
+        if (cleanedText !== text) {
+            console.log('Bad words filtered from review comment');
+        }
+        
+        return cleanedText;
+    } catch (error) {
+        console.error('Error filtering bad words:', error);
+        return text; // Return original text if filtering fails
+    }
+};
 
 // Helper function to check if user can review a product
 const canUserReviewProduct = async (userId, productId) => {
@@ -288,11 +317,14 @@ exports.createProductReview = async (req, res, next) => {
 			});
 		}
 
+		// Filter bad words from comment
+		const filteredComment = filterBadWords(comment);
+
 		const review = {
 			user: req.user._id,
 			name: req.user.name,
 			rating: Number(rating),
-			comment,
+			comment: filteredComment,
 			createdAt: new Date()
 		};
 
@@ -354,9 +386,12 @@ exports.updateProductReview = async (req, res, next) => {
 			});
 		}
 
+		// Filter bad words from comment
+		const filteredComment = filterBadWords(comment);
+
 		// Update the existing review
 		product.reviews[reviewIndex].rating = Number(rating);
-		product.reviews[reviewIndex].comment = comment;
+		product.reviews[reviewIndex].comment = filteredComment;
 		product.reviews[reviewIndex].updatedAt = new Date();
 
 		// Recalculate ratings
@@ -497,7 +532,7 @@ exports.bulkDeleteProducts = async (req, res, next) => {
             deletedCount: result.deletedCount
         });
     } catch (error) {
-        console.error('Bulk delete error:', error);
+        console.error('Bulk delete products error:', error);
         return res.status(500).json({
             success: false,
             message: 'Error deleting products'
@@ -505,3 +540,30 @@ exports.bulkDeleteProducts = async (req, res, next) => {
     }
 }
 
+// Test endpoint for bad word filtering (optional - for testing purposes)
+exports.testBadWordFilter = async (req, res, next) => {
+    try {
+        const { text } = req.body;
+        
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide text to filter'
+            });
+        }
+
+        const filteredText = filterBadWords(text);
+        
+        return res.status(200).json({
+            success: true,
+            originalText: text,
+            filteredText: filteredText,
+            wasFiltered: text !== filteredText
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error testing bad word filter'
+        });
+    }
+}

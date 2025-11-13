@@ -15,6 +15,7 @@ const {
     checkReviewEligibility,
     deleteReview,
     bulkDeleteProducts,
+    testBadWordFilter,
     } = require('../controllers/product');
 
     const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth')
@@ -34,4 +35,7 @@ router.patch('/review/update', isAuthenticatedUser, updateProductReview);
 router.get('/reviews',isAuthenticatedUser, getProductReviews)
 router.get('/review/eligibility', isAuthenticatedUser, checkReviewEligibility)
 router.delete('/reviews', isAuthenticatedUser, authorizeRoles('admin'), deleteReview)
+
+// Test route for bad word filtering (optional - for development/testing)
+router.post('/test/badwords', testBadWordFilter)
 module.exports = router
