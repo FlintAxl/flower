@@ -39,10 +39,5 @@ router.delete('/reviews', isAuthenticatedUser, authorizeRoles('admin'), deleteRe
 // Test route for bad word filtering (optional - for development/testing)
 router.post('/test/badwords', testBadWordFilter)
 
-// Test route for email configuration
-router.get('/test/email', async (req, res) => {
-    const { testEmailConfig } = require('../utils/testEmail');
-    const result = await testEmailConfig();
-    res.json(result);
-})
+
 module.exports = router
