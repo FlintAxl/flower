@@ -8,33 +8,73 @@ const { generateOrderReceipt } = require('../utils/pdfGenerator');
 
 // Create a new order   =>  /api/v1/order/new
 exports.newOrder = async (req, res, next) => {
-    const {
-        orderItems,
-        shippingInfo,
-        itemsPrice,
-        taxPrice,
-        shippingPrice,
-        totalPrice,
-        paymentInfo
+    try {
+        const {
+            orderItems,
+            shippingInfo,
+            itemsPrice,
+            taxPrice,
+            shippingPrice,
+            totalPrice,
+            paymentInfo
 
-    } = req.body;
+        } = req.body;
 
-    const order = await Order.create({
-        orderItems,
-        shippingInfo,
-        itemsPrice,
-        taxPrice,
-        shippingPrice,
-        totalPrice,
-        paymentInfo,
-        paidAt: Date.now(),
-        user: req.user._id
-    })
+        const order = await Order.create({
+            orderItems,
+            shippingInfo,
+            itemsPrice,
+            taxPrice,
+            shippingPrice,
+            totalPrice,
+            paymentInfo,
+            paidAt: Date.now(),
+            user: req.user._id
+        })
 
-    res.status(200).json({
-        success: true,
-        order
-    })
+        // Populate order with product details for email
+        const populatedOrder = await Order.findById(order._id).populate('orderItems.product');
+        
+        // Get user information for email
+        const user = await User.findById(req.user._id);
+        
+        // Send order confirmation email with PDF receipt
+        console.log('Sending order confirmation email for new order...');
+        
+        // Generate PDF receipt for the new order
+        const pdfResult = await generateOrderReceipt({ order: populatedOrder, user });
+        let pdfPath = null;
+        
+        if (pdfResult.success) {
+            pdfPath = pdfResult.pdfPath;
+            console.log('PDF receipt generated successfully for new order');
+        } else {
+            console.error('Failed to generate PDF for new order:', pdfResult.error);
+        }
+        
+        // Send email notification with PDF attachment
+        const emailResult = await sendOrderStatusEmail({ order: populatedOrder, user }, pdfPath);
+        
+        if (emailResult.success) {
+            console.log('Order confirmation email sent successfully:', emailResult.messageId);
+        } else {
+            console.error('Failed to send order confirmation email:', emailResult.error);
+            // Don't fail the order creation if email fails
+        }
+
+        res.status(200).json({
+            success: true,
+            order,
+            emailSent: emailResult.success
+        })
+        
+    } catch (error) {
+        console.error('Error creating order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating order'
+        });
+    }
 }
 
 exports.myOrders = async (req, res, next) => {
@@ -135,23 +175,21 @@ exports.updateOrder = async (req, res, next) => {
         order.orderStatus = newStatus;
         await order.save();
 
-        // Send email notification for Shipped or Delivered status
-        if (newStatus === 'Shipped' || newStatus === 'Delivered') {
+        // Send email notification for Processing, Shipped or Delivered status
+        if (newStatus === 'Processing' || newStatus === 'Shipped' || newStatus === 'Delivered') {
             let pdfPath = null;
             
-            // Generate PDF receipt for delivered orders
-            if (newStatus === 'Delivered') {
-                console.log('Generating PDF receipt for delivered order...');
-                const pdfResult = await generateOrderReceipt({ order, user });
-                if (pdfResult.success) {
-                    pdfPath = pdfResult.pdfPath;
-                    console.log('PDF receipt generated successfully');
-                } else {
-                    console.error('Failed to generate PDF:', pdfResult.error);
-                }
+            // Generate PDF receipt for processing, shipped and delivered orders
+            console.log(`Generating PDF receipt for ${newStatus.toLowerCase()} order...`);
+            const pdfResult = await generateOrderReceipt({ order, user });
+            if (pdfResult.success) {
+                pdfPath = pdfResult.pdfPath;
+                console.log('PDF receipt generated successfully');
+            } else {
+                console.error('Failed to generate PDF:', pdfResult.error);
             }
             
-            // Send email notification
+            // Send email notification with PDF attachment
             console.log(`Sending ${newStatus} email notification to ${user.email}...`);
             const emailResult = await sendOrderStatusEmail({ order, user }, pdfPath);
             
@@ -165,7 +203,7 @@ exports.updateOrder = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            message: `Order status updated to ${newStatus}${newStatus === 'Shipped' || newStatus === 'Delivered' ? '. Email notification sent.' : ''}`
+            message: `Order status updated to ${newStatus}${newStatus === 'Processing' || newStatus === 'Shipped' || newStatus === 'Delivered' ? '. Email notification sent.' : ''}`
         });
         
     } catch (error) {

@@ -164,8 +164,8 @@ const ProcessOrder = () => {
                                         {updating ? (
                                             <>
                                                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                {status === 'Shipped' || status === 'Delivered' ? 
-                                                    `Updating to ${status} & Sending Email...` : 
+                                                {status === 'Processing' || status === 'Shipped' || status === 'Delivered' ? 
+                                                    `Updating to ${status} & Sending Email with PDF...` : 
                                                     `Updating to ${status}...`
                                                 }
                                             </>

@@ -5,7 +5,7 @@ import CheckoutSteps from './CheckoutSteps'
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { getToken } from '../../utils/helpers';
+import { getToken } from '../../Utils/helpers';
 
 
 
@@ -40,8 +40,15 @@ const Payment = ({cartItems, shippingInfo}) => {
             const { data } = await axios.post(`${import.meta.env.VITE_API}/order/new`, order, config)
             // setIsUpdated(data.success)
             setLoading(false)
-            toast.success('order created', {
-                position: toast.POSITION.BOTTOM_RIGHT
+            
+            // Show success message with email confirmation
+            const successMessage = data.emailSent 
+                ? 'Order created successfully! Confirmation email with PDF receipt sent.'
+                : 'Order created successfully! (Email notification failed)';
+                
+            toast.success(successMessage, {
+                position: toast.POSITION.BOTTOM_RIGHT,
+                autoClose: 5000
             });
            
             // sessionStorage.removeItem('orderInfo')
