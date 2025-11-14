@@ -11,6 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import ProductSalesChart from './ProductSalesChart';
 import UserSalesChart from './UserSalesChart';
 import MonthlySalesChart from './MonthlySalesChart';
+import SalesRangeChart from './SalesRangeChart';
 const Dashboard = () => {
 
     const [products, setProducts] = useState([])
@@ -141,17 +142,27 @@ const Dashboard = () => {
                    
                    
                 </div>
-   <>
-                    <ProductSalesChart />
-                </>
-                <>
-                    <UserSalesChart />
-                </>
-                 <>
-                    <MonthlySalesChart />
-                </>
+
+                <div className="col-12 mt-4">
+                    <div className="row">
+                        <div className="col-md-6 mb-4">
+                            <ProductSalesChart />
+                        </div>
+                        <div className="col-md-6 mb-4">
+                            <UserSalesChart />
+                        </div>
+                    </div>
+                    <div className="row">
+                        <div className="col-md-6 mb-4">
+                            <MonthlySalesChart />
+                        </div>
+                        <div className="col-md-6 mb-4">
+                            <SalesRangeChart />
+                        </div>
+                    </div>
+                </div>
             </div>
-        </ >
+        </>
     )
 }
 

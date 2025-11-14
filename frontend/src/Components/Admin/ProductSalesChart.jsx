@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getToken } from "../../utils/helpers";
+import { getToken } from "../../Utils/helpers";
 import axios from "axios";
 import Loader from '../Layout/Loader';
 

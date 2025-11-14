@@ -4,42 +4,75 @@ import { getToken } from "../../Utils/helpers";
 import axios from "axios";
 import Loader from '../Layout/Loader';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+
 export default function MonthlySalesChart() {
     const [sales, setSales] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+
     const monthlySales = async () => {
         try {
             const config = {
                 headers: {
-                    
                     'Authorization': `Bearer ${getToken()}`
                 }
             }
 
             const { data } = await axios.get(`${import.meta.env.VITE_API}/admin/sales-per-month`, config)
-            setSales(data.salesPerMonth)
-            // console.log(data.salesPerMonth)
-            setLoading(false)
 
+            const apiData = Array.isArray(data.salesPerMonth) ? data.salesPerMonth : []
+            const monthMap = apiData.reduce((acc, item) => {
+                if (item && item.month) {
+                    acc[item.month] = item.total || 0
+                }
+                return acc
+            }, {})
+
+            const normalizedSales = MONTHS.map((m) => ({
+                month: m,
+                total: monthMap[m] || 0,
+            }))
+
+            setSales(normalizedSales)
         } catch (error) {
-           setError(error.response.data.message)
+            setError(error?.response?.data?.message || 'Failed to load monthly sales')
+        } finally {
+            setLoading(false)
         }
     }
+
     useEffect(() => {
         monthlySales()
-       
     }, [])
 
+    if (loading) {
+        return <Loader />
+    }
+
+    if (error) {
+        return <div className="alert alert-danger my-3">{error}</div>
+    }
+
     return (
-        <ResponsiveContainer width="90%" height={600}>
-            <LineChart width={600} height={300} data={sales} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <Line type="monotone" dataKey="total" stroke="#8884d8" />
-                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-            </LineChart>
-        </ResponsiveContainer>
+        <div className="my-4">
+            <h4 className="mb-3">Monthly Sales (Current Year)</h4>
+            <ResponsiveContainer width="90%" height={400}>
+                <LineChart data={sales} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+                    <CartesianGrid stroke="#e0e0e0" strokeDasharray="4 4" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Total Sales']} />
+                    <Line
+                        type="monotone"
+                        dataKey="total"
+                        stroke="#8884d8"
+                        strokeWidth={3}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6 }}
+                    />
+                </LineChart>
+            </ResponsiveContainer>
+        </div>
     );
 }
