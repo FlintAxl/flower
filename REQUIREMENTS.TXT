@@ -34,7 +34,7 @@ user interface design css and Material UI (MUI) components 20pts
 quiz 1 
 price filter 5pts || DONE
 category filter 5pts || DONE
-ratings filter 5pts || 
+ratings filter 5pts || DONE
 
 quiz 2
 monthly sales charts. all months on the chart label. line chart 10pts || DONE
