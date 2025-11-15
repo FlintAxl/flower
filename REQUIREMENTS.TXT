@@ -52,3 +52,8 @@ term test LEC
 functional requirements completeness 10pts
 program execution (errors).  10pts
 project contribution 10pts
+
+===== MGA TINAMAD AYUSIN==
+1. Di ata nagana ung reset password
+2. Need pa ata naka table lahat ng mga reviews sa dashboard.
+3. Facebook 

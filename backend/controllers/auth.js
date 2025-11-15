@@ -3,7 +3,7 @@ const User = require('../models/user');
 
 const crypto = require('crypto')
 const cloudinary = require('cloudinary')
-const sendEmail = require('../utils/sendEmail')
+
 
 exports.registerUser = async (req, res, next) => {
     try {
