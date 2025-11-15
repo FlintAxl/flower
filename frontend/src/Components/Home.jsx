@@ -4,6 +4,10 @@ import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Slider from '@mui/material/Slider';
+import Drawer from '@mui/material/Drawer';
+import IconButton from '@mui/material/IconButton';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import Search from './Layout/Search';
 import MetaData from './Layout/MetaData';
@@ -18,6 +22,7 @@ const Home = () => {
   const [price, setPrice] = useState([1, 1000]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showScroll, setShowScroll] = useState(false);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const { keyword } = useParams();
   let count = keyword ? filteredProductsCount : productsCount;
@@ -77,6 +82,13 @@ const Home = () => {
               <h1 className="text-3xl font-semibold text-gray-900 dark:text-ink tracking-wide">🌺 Fresh Blooms 🌺</h1>
               <div className="flex items-center gap-3 md:w-1/2 md:justify-end">
                 <div className="flex-1"><Search /></div>
+                <IconButton
+                  onClick={() => setFilterDrawerOpen(true)}
+                  className="!bg-purple-100 dark:!bg-purple-900/30 hover:!bg-purple-200 dark:hover:!bg-purple-900/50 !text-purple-600 dark:!text-purple-400 !border !border-purple-300 dark:!border-purple-500/30"
+                  aria-label="open filters"
+                >
+                  <FilterListIcon />
+                </IconButton>
               </div>
             </div>
           </div>
@@ -99,88 +111,7 @@ const Home = () => {
           </section>
 
           <section className="flex flex-col md:flex-row max-w-7xl mx-auto px-6 pb-20 gap-8">
-            {keyword && (
-              <aside className="md:w-1/4 bg-purple-50 dark:bg-base-soft p-6 rounded-2xl shadow-md border border-purple-200 dark:border-purple-500/20 animate-slideIn">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-ink mb-6 tracking-wide flex items-center space-x-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="1.8"
-                    stroke="#a78bfa"
-                    className="w-5 h-5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414V20l-4-2v-4.293L3.293 7.293A1 1 0 013 6.586V4z"
-                    />
-                  </svg>
-                  <span>Filters</span>
-                </h3>
-
-                <div className="bg-white dark:bg-base-dark p-4 rounded-xl shadow-sm border border-purple-200 dark:border-purple-500/20 mb-6">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-ink mb-2 uppercase tracking-wide">
-                    Price Range
-                  </h4>
-                  <Box sx={{ width: '100%' }}>
-                    <Slider
-                      getAriaLabel={() => 'Price Filter'}
-                      value={price}
-                      onChange={handleChange}
-                      valueLabelDisplay="on"
-                      getAriaValueText={valuetext}
-                      min={1}
-                      max={1000}
-                      sx={{
-                        color: '#a78bfa',
-                        '& .MuiSlider-thumb': { border: '2px solid #8b5cf6' },
-                        '& .MuiSlider-valueLabel': {
-                          backgroundColor: '#8b5cf6',
-                          color: '#ffffff',
-                        },
-                      }}
-                    />
-                  </Box>
-                  <div className="text-sm text-gray-600 dark:text-ink-muted mt-2 flex justify-between">
-                    <span>₱{price[0]}</span>
-                    <span>₱{price[1]}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-ink mb-3 uppercase tracking-wide">
-                    Categories
-                  </h4>
-                  <ul className="space-y-3">
-                    {['Roses', 'Tulips', 'Orchids', 'Sunflowers'].map((category) => (
-                      <li
-                        key={category}
-                        className="flex items-center space-x-2 cursor-pointer bg-gray-100 text-gray-800 dark:bg-base-dark rounded-full py-2 px-4 text-sm dark:text-ink hover:bg-purple-200 dark:hover:bg-purple-900/30 hover:text-gray-900 dark:hover:text-ink transition-all duration-200 border border-transparent hover:border-purple-400 dark:hover:border-purple-500/40 shadow-sm"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={1.8}
-                          stroke="#a78bfa"
-                          className="w-4 h-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 12h14M12 5l7 7-7 7"
-                          />
-                        </svg>
-                        <span>{category}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </aside>
-            )}
-
-            <div className={`${keyword ? 'md:w-3/4' : 'w-full'}`}>
+            <div className="w-full">
               <div
                 id="products"
                 className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 animate-fadeIn"
@@ -364,6 +295,110 @@ const Home = () => {
               ↑
             </button>
           )}
+
+          {/* Filter Drawer */}
+          <Drawer
+            anchor="right"
+            open={filterDrawerOpen}
+            onClose={() => setFilterDrawerOpen(false)}
+            PaperProps={{
+              sx: {
+                width: { xs: '85%', sm: '400px' },
+                backgroundColor: 'rgb(250, 245, 255)',
+                '@media (prefers-color-scheme: dark)': {
+                  backgroundColor: 'rgb(30, 30, 35)',
+                },
+              },
+            }}
+          >
+            <div className="h-full bg-purple-50 dark:bg-base-soft p-6 overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-ink tracking-wide flex items-center space-x-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="1.8"
+                    stroke="#a78bfa"
+                    className="w-5 h-5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414V20l-4-2v-4.293L3.293 7.293A1 1 0 013 6.586V4z"
+                    />
+                  </svg>
+                  <span>Filters</span>
+                </h3>
+                <IconButton
+                  onClick={() => setFilterDrawerOpen(false)}
+                  className="!text-gray-600 dark:!text-ink-muted hover:!bg-purple-200 dark:hover:!bg-purple-900/30"
+                  aria-label="close filters"
+                >
+                  <CloseIcon />
+                </IconButton>
+              </div>
+
+              <div className="bg-white dark:bg-base-dark p-4 rounded-xl shadow-sm border border-purple-200 dark:border-purple-500/20 mb-6">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-ink mb-2 uppercase tracking-wide">
+                  Price Range
+                </h4>
+                <Box sx={{ width: '100%' }}>
+                  <Slider
+                    getAriaLabel={() => 'Price Filter'}
+                    value={price}
+                    onChange={handleChange}
+                    valueLabelDisplay="on"
+                    getAriaValueText={valuetext}
+                    min={1}
+                    max={1000}
+                    sx={{
+                      color: '#a78bfa',
+                      '& .MuiSlider-thumb': { border: '2px solid #8b5cf6' },
+                      '& .MuiSlider-valueLabel': {
+                        backgroundColor: '#8b5cf6',
+                        color: '#ffffff',
+                      },
+                    }}
+                  />
+                </Box>
+                <div className="text-sm text-gray-600 dark:text-ink-muted mt-2 flex justify-between">
+                  <span>₱{price[0]}</span>
+                  <span>₱{price[1]}</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-ink mb-3 uppercase tracking-wide">
+                  Categories
+                </h4>
+                <ul className="space-y-3">
+                  {['Roses', 'Tulips', 'Orchids', 'Sunflowers'].map((category) => (
+                    <li
+                      key={category}
+                      className="flex items-center space-x-2 cursor-pointer bg-gray-100 text-gray-800 dark:bg-base-dark rounded-full py-2 px-4 text-sm dark:text-ink hover:bg-purple-200 dark:hover:bg-purple-900/30 hover:text-gray-900 dark:hover:text-ink transition-all duration-200 border border-transparent hover:border-purple-400 dark:hover:border-purple-500/40 shadow-sm"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.8}
+                        stroke="#a78bfa"
+                        className="w-4 h-4"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 12h14M12 5l7 7-7 7"
+                        />
+                      </svg>
+                      <span>{category}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Drawer>
         </div>
       )}
     </>

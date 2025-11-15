@@ -55,5 +55,5 @@ project contribution 10pts
 
 ===== MGA TINAMAD AYUSIN==
 1. Di ata nagana ung reset password
-2. Need pa ata naka table lahat ng mga reviews sa dashboard.
-3. Facebook 
+2. Need pa ata naka table lahat ng mga reviews sa dashboard para maganda?.
+3. Facebook sign up tinamad 
