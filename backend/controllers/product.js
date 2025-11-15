@@ -190,12 +190,40 @@ exports.getProducts = async (req, res) => {
     const resPerPage = 20;
     const productsCount = await Product.countDocuments();
 
-    // const products = await Product.find()
-    const apiFeatures = new APIFeatures(Product.find(), req.query).search().filter()
+    // Build filter object for counting
+    let filterObj = {};
     
+    // Add keyword search filter
+    if (req.query.keyword) {
+        filterObj.name = {
+            $regex: req.query.keyword,
+            $options: 'i'
+        };
+    }
+    
+    // Add price filter
+    if (req.query['price[gte]'] || req.query['price[lte]']) {
+        filterObj.price = {};
+        if (req.query['price[gte]']) {
+            filterObj.price.$gte = Number(req.query['price[gte]']);
+        }
+        if (req.query['price[lte]']) {
+            filterObj.price.$lte = Number(req.query['price[lte]']);
+        }
+    }
+    
+    // Add category filter
+    if (req.query.category) {
+        filterObj.category = req.query.category;
+    }
+    
+    // Get filtered products count (before pagination)
+    const filteredProductsCount = await Product.countDocuments(filterObj);
+
+    // Get paginated products
+    const apiFeatures = new APIFeatures(Product.find(), req.query).search().filter()
     apiFeatures.pagination(resPerPage);
 	const products = await apiFeatures.query;
-    let filteredProductsCount = products.length;
 
     if (!products)
         return res.status(400).json({ message: 'error loading products' })

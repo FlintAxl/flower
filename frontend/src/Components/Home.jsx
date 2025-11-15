@@ -23,16 +23,31 @@ const Home = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showScroll, setShowScroll] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  
+  const categories = [
+    'Bouquets',
+    'Roses',
+    'Tulips',
+    'Sunflowers',
+    'Flower Baskets',
+    'Flower Boxes',
+    'Vase Arrangements'
+  ];
 
   const { keyword } = useParams();
-  let count = keyword ? filteredProductsCount : productsCount;
+  // Use filteredProductsCount when there's a keyword or category filter
+  let count = (keyword || selectedCategory) ? filteredProductsCount : productsCount;
 
   const handleChange = (event, newValue) => setPrice(newValue);
   const valuetext = (price) => `₱${price}`;
 
-  const getProducts = async (keyword = '', page = 1, price) => {
+  const getProducts = async (keyword = '', page = 1, price, category = '') => {
     try {
       let link = `http://localhost:4001/api/v1/products?keyword=${keyword}&page=${page}&price[gte]=${price[0]}&price[lte]=${price[1]}`;
+      if (category) {
+        link += `&category=${encodeURIComponent(category)}`;
+      }
       const res = await axios.get(link);
 
       setProducts(res.data.products);
@@ -48,8 +63,12 @@ const Home = () => {
   };
 
   useEffect(() => {
-    getProducts(keyword, currentPage, price);
-  }, [keyword, currentPage, price]);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [price, selectedCategory]);
+
+  useEffect(() => {
+    getProducts(keyword, currentPage, price, selectedCategory);
+  }, [keyword, currentPage, price, selectedCategory]);
 
   // Scroll to top button visibility
   useEffect(() => {
@@ -369,21 +388,36 @@ const Home = () => {
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-ink mb-3 uppercase tracking-wide">
-                  Categories
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-ink uppercase tracking-wide">
+                    Categories
+                  </h4>
+                  {selectedCategory && (
+                    <button
+                      onClick={() => setSelectedCategory('')}
+                      className="text-xs text-purple-600 dark:text-purple-400 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
                 <ul className="space-y-3">
-                  {['Roses', 'Tulips', 'Orchids', 'Sunflowers'].map((category) => (
+                  {categories.map((category) => (
                     <li
                       key={category}
-                      className="flex items-center space-x-2 cursor-pointer bg-gray-100 text-gray-800 dark:bg-base-dark rounded-full py-2 px-4 text-sm dark:text-ink hover:bg-purple-200 dark:hover:bg-purple-900/30 hover:text-gray-900 dark:hover:text-ink transition-all duration-200 border border-transparent hover:border-purple-400 dark:hover:border-purple-500/40 shadow-sm"
+                      onClick={() => setSelectedCategory(category === selectedCategory ? '' : category)}
+                      className={`flex items-center space-x-2 cursor-pointer rounded-full py-2 px-4 text-sm transition-all duration-200 border shadow-sm ${
+                        selectedCategory === category
+                          ? 'bg-purple-500 text-white dark:bg-purple-600 border-purple-600 dark:border-purple-500'
+                          : 'bg-gray-100 text-gray-800 dark:bg-base-dark dark:text-ink hover:bg-purple-200 dark:hover:bg-purple-900/30 hover:text-gray-900 dark:hover:text-ink border-transparent hover:border-purple-400 dark:hover:border-purple-500/40'
+                      }`}
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
                         strokeWidth={1.8}
-                        stroke="#a78bfa"
+                        stroke={selectedCategory === category ? "#ffffff" : "#a78bfa"}
                         className="w-4 h-4"
                       >
                         <path
@@ -393,6 +427,22 @@ const Home = () => {
                         />
                       </svg>
                       <span>{category}</span>
+                      {selectedCategory === category && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="currentColor"
+                          className="w-4 h-4 ml-auto"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
                     </li>
                   ))}
                 </ul>

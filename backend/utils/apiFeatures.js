@@ -19,7 +19,7 @@ class APIFeatures {
     }
 
     filter() {
-        // { 'price[gte]': '100', 'price[lte]': '1000' }
+        // { 'price[gte]': '100', 'price[lte]': '1000', 'category': 'Roses' }
         const queryCopy = { ...this.queryStr };
         // console.log(queryCopy);
         // Removing fields from the query
@@ -45,9 +45,19 @@ class APIFeatures {
             delete queryCopy['price[lte]'];
         }
 
+        // Handle category filter
+        let categoryFilter = {};
+        if (queryCopy['category']) {
+            categoryFilter.category = queryCopy['category'];
+            delete queryCopy['category'];
+        }
+
+        // Merge all filters
+        const filters = { ...priceFilter, ...categoryFilter, ...queryCopy };
+
         console.log(queryCopy);
 
-        this.query = this.query.find(priceFilter);
+        this.query = this.query.find(filters);
         return this;
     }
 
