@@ -52,8 +52,16 @@ class APIFeatures {
             delete queryCopy['category'];
         }
 
+        // Handle ratings filter
+        let ratingsFilter = {};
+        if (queryCopy['ratings[gte]']) {
+            ratingsFilter.ratings = {};
+            ratingsFilter.ratings.$gte = Number(queryCopy['ratings[gte]']);
+            delete queryCopy['ratings[gte]'];
+        }
+
         // Merge all filters
-        const filters = { ...priceFilter, ...categoryFilter, ...queryCopy };
+        const filters = { ...priceFilter, ...categoryFilter, ...ratingsFilter, ...queryCopy };
 
         console.log(queryCopy);
 

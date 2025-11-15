@@ -24,6 +24,7 @@ const Home = () => {
   const [showScroll, setShowScroll] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [minRating, setMinRating] = useState(0);
   
   const categories = [
     'Bouquets',
@@ -36,17 +37,20 @@ const Home = () => {
   ];
 
   const { keyword } = useParams();
-  // Use filteredProductsCount when there's a keyword or category filter
-  let count = (keyword || selectedCategory) ? filteredProductsCount : productsCount;
+  // Use filteredProductsCount when there's a keyword, category, or rating filter
+  let count = (keyword || selectedCategory || minRating > 0) ? filteredProductsCount : productsCount;
 
   const handleChange = (event, newValue) => setPrice(newValue);
   const valuetext = (price) => `₱${price}`;
 
-  const getProducts = async (keyword = '', page = 1, price, category = '') => {
+  const getProducts = async (keyword = '', page = 1, price, category = '', rating = 0) => {
     try {
       let link = `http://localhost:4001/api/v1/products?keyword=${keyword}&page=${page}&price[gte]=${price[0]}&price[lte]=${price[1]}`;
       if (category) {
         link += `&category=${encodeURIComponent(category)}`;
+      }
+      if (rating > 0) {
+        link += `&ratings[gte]=${rating}`;
       }
       const res = await axios.get(link);
 
@@ -64,11 +68,11 @@ const Home = () => {
 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filters change
-  }, [price, selectedCategory]);
+  }, [price, selectedCategory, minRating]);
 
   useEffect(() => {
-    getProducts(keyword, currentPage, price, selectedCategory);
-  }, [keyword, currentPage, price, selectedCategory]);
+    getProducts(keyword, currentPage, price, selectedCategory, minRating);
+  }, [keyword, currentPage, price, selectedCategory, minRating]);
 
   // Scroll to top button visibility
   useEffect(() => {
@@ -385,6 +389,57 @@ const Home = () => {
                   <span>₱{price[0]}</span>
                   <span>₱{price[1]}</span>
                 </div>
+              </div>
+
+              <div className="bg-white dark:bg-base-dark p-4 rounded-xl shadow-sm border border-purple-200 dark:border-purple-500/20 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-ink uppercase tracking-wide">
+                    Minimum Rating
+                  </h4>
+                  {minRating > 0 && (
+                    <button
+                      onClick={() => setMinRating(0)}
+                      className="text-xs text-purple-600 dark:text-purple-400 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <button
+                      key={rating}
+                      onClick={() => setMinRating(rating === minRating ? 0 : rating)}
+                      className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-200 ${
+                        minRating >= rating
+                          ? 'bg-yellow-400 text-yellow-900'
+                          : 'bg-gray-100 dark:bg-base-dark text-gray-400 hover:bg-gray-200 dark:hover:bg-purple-900/30'
+                      }`}
+                      aria-label={`${rating} star${rating > 1 ? 's' : ''} and up`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill={minRating >= rating ? "currentColor" : "none"}
+                        stroke="currentColor"
+                        className="w-5 h-5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.09 6.418a1 1 0 00.95.69h6.75c.969 0 1.371 1.24.588 1.81l-5.47 3.974a1 1 0 00-.364 1.118l2.09 6.418c.3.921-.755 1.688-1.54 1.118l-5.47-3.974a1 1 0 00-1.176 0l-5.47 3.974c-.785.57-1.84-.197-1.54-1.118l2.09-6.418a1 1 0 00-.364-1.118L2.67 11.845c-.783-.57-.38-1.81.588-1.81h6.75a1 1 0 00.95-.69l2.09-6.418z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium">{rating}+</span>
+                    </button>
+                  ))}
+                </div>
+                {minRating > 0 && (
+                  <p className="text-xs text-gray-600 dark:text-ink-muted">
+                    Showing products with {minRating}+ star{minRating > 1 ? 's' : ''} rating
+                  </p>
+                )}
               </div>
 
               <div>

@@ -217,6 +217,12 @@ exports.getProducts = async (req, res) => {
         filterObj.category = req.query.category;
     }
     
+    // Add ratings filter
+    if (req.query['ratings[gte]']) {
+        filterObj.ratings = {};
+        filterObj.ratings.$gte = Number(req.query['ratings[gte]']);
+    }
+    
     // Get filtered products count (before pagination)
     const filteredProductsCount = await Product.countDocuments(filterObj);
 

@@ -54,7 +54,7 @@ program execution (errors).  10pts
 project contribution 10pts
 
 ===== MGA TINAMAD AYUSIN==
-1. Di ata nagana ung reset password
+1. Di ata nagana ung reset password d ko tinry 
 2. Need pa ata naka table lahat ng mga reviews sa dashboard para maganda?.
 3. Facebook sign up tinamad 
 4. Mas maganda ata pag nakaka review na sa mismong "my order" punta pa kasi sa mismong product para maka review
