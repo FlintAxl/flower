@@ -24,7 +24,7 @@ attach a pdf receipt on the email 10pts|| DONE
 
 unit 1
 filter/mask bad words from reviews. bad-words package 10pts || DONE
-form validation on product and user forms. (product crud, user login, update profile) YUP formik React Hook Form 10pts
+form validation on product and user forms. (product crud, user login, update profile) YUP formik React Hook Form 10pts ||DONE
 
 unit 2
 user interface design css 10pts
