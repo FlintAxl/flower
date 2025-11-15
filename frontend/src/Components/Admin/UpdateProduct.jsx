@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import MetaData from '../Layout/MetaData';
 import Sidebar from './SideBar';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
-import { getToken } from '../../utils/helpers';
+import { getToken } from '../../Utils/helpers';
 
 const UpdateProduct = () => {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState(0);
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [stock, setStock] = useState(0);
-  const [seller, setSeller] = useState('');
   const [images, setImages] = useState([]); // new images (base64)
   const [oldImages, setOldImages] = useState([]); // existing images from server (objects or urls)
   const [imagesPreview, setImagesPreview] = useState([]); // previews for new images (base64)
@@ -35,6 +32,56 @@ const UpdateProduct = () => {
 
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Validation schema (images optional for update)
+  const productSchema = yup.object().shape({
+    name: yup
+      .string()
+      .required('Product name is required')
+      .max(100, 'Product name cannot exceed 100 characters')
+      .trim(),
+    price: yup
+      .number()
+      .typeError('Price must be a number')
+      .required('Price is required')
+      .positive('Price must be greater than 0')
+      .max(99999, 'Price cannot exceed 99999'),
+    description: yup
+      .string()
+      .required('Description is required')
+      .min(10, 'Description must be at least 10 characters'),
+    category: yup
+      .string()
+      .required('Please select a category')
+      .oneOf(categories, 'Please select a valid category'),
+    stock: yup
+      .number()
+      .typeError('Stock must be a number')
+      .required('Stock is required')
+      .integer('Stock must be a whole number')
+      .min(0, 'Stock cannot be negative')
+      .max(99999, 'Stock cannot exceed 99999'),
+    seller: yup
+      .string()
+      .required('Seller name is required')
+      .trim(),
+    images: yup
+      .mixed()
+      .nullable()
+      .test('fileSize', 'Each image must be less than 5MB', (value) => {
+        if (!value || value.length === 0) return true;
+        return value.every((file) => file.size <= 5 * 1024 * 1024);
+      })
+      .test('fileType', 'Only image files are allowed', (value) => {
+        if (!value || value.length === 0) return true;
+        return value.every((file) => file.type.startsWith('image/'));
+      })
+  });
+
+  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
+    resolver: yupResolver(productSchema),
+    mode: 'onChange'
+  });
 
   const errMsg = (message = '') =>
     toast.error(message, {
@@ -90,16 +137,18 @@ const UpdateProduct = () => {
     }
 
     // populate form when product available
-    setName(product.name || '');
-    setPrice(product.price ?? 0);
-    setDescription(product.description || '');
-    setCategory(product.category || '');
-    setSeller(product.seller || '');
-    setStock(product.stock ?? 0);
+    reset({
+      name: product.name || '',
+      price: product.price ?? 0,
+      description: product.description || '',
+      category: product.category || '',
+      seller: product.seller || '',
+      stock: product.stock ?? 0
+    });
     // keep oldImages as array of objects or urls
     setOldImages(product.images || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, product._id]); // product._id as dependency so that after fetch the effect runs
+  }, [id, product._id, reset]); // product._id as dependency so that after fetch the effect runs
 
   // show errors / success
   useEffect(() => {
@@ -119,17 +168,15 @@ const UpdateProduct = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error, updateError, isUpdated]);
 
-  const submitHandler = (e) => {
-    e.preventDefault();
-
+  const onSubmit = (data) => {
     // Build payload. If there are new images include them, otherwise omit images to keep old images
     const productData = {
-      name,
-      price,
-      description,
-      category,
-      stock,
-      seller,
+      name: data.name,
+      price: data.price,
+      description: data.description,
+      category: data.category,
+      stock: data.stock,
+      seller: data.seller,
       images: images.length > 0 ? images : undefined
     };
 
@@ -140,6 +187,7 @@ const UpdateProduct = () => {
     const files = Array.from(e.target.files);
     setImagesPreview([]);
     setImages([]);
+    setValue('images', files, { shouldValidate: true });
 
     files.forEach((file) => {
       const reader = new FileReader();
@@ -238,23 +286,31 @@ const UpdateProduct = () => {
                     multiple
                     accept="image/*"
                     onChange={onChange}
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-100 dark:file:bg-purple-900/30 file:text-purple-700 dark:file:text-purple-300 hover:file:bg-purple-200 dark:hover:file:bg-purple-900/50"
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.images ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-100 dark:file:bg-purple-900/30 file:text-purple-700 dark:file:text-purple-300 hover:file:bg-purple-200 dark:hover:file:bg-purple-900/50`}
                   />
+                  {errors.images && (
+                    <p className="mt-2 text-sm text-red-500">{errors.images.message}</p>
+                  )}
                 </div>
               </div>
 
               {/* FORM: 3-column grid */}
-              <form onSubmit={submitHandler} encType="multipart/form-data" className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data" className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Name</label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base"
+                    {...register('name')}
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.name ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base`}
                   />
+                  {errors.name && (
+                    <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
+                  )}
                 </div>
 
                 {/* Price */}
@@ -262,21 +318,24 @@ const UpdateProduct = () => {
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Price</label>
                   <input
                     type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base"
+                    {...register('price')}
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.price ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base`}
                   />
+                  {errors.price && (
+                    <p className="mt-1 text-sm text-red-500">{errors.price.message}</p>
+                  )}
                 </div>
 
                 {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Category</label>
                   <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base"
+                    {...register('category')}
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.category ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base`}
                   >
                     <option value="">Select Category</option>
                     {categories.map((cat) => (
@@ -285,6 +344,9 @@ const UpdateProduct = () => {
                       </option>
                     ))}
                   </select>
+                  {errors.category && (
+                    <p className="mt-1 text-sm text-red-500">{errors.category.message}</p>
+                  )}
                 </div>
 
                 {/* Description (span all 3) */}
@@ -292,11 +354,14 @@ const UpdateProduct = () => {
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Description</label>
                   <textarea
                     rows="5"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base"
+                    {...register('description')}
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.description ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base`}
                   />
+                  {errors.description && (
+                    <p className="mt-1 text-sm text-red-500">{errors.description.message}</p>
+                  )}
                 </div>
 
                 {/* Stock */}
@@ -304,11 +369,14 @@ const UpdateProduct = () => {
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Stock</label>
                   <input
                     type="number"
-                    value={stock}
-                    onChange={(e) => setStock(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base"
+                    {...register('stock')}
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.stock ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base`}
                   />
+                  {errors.stock && (
+                    <p className="mt-1 text-sm text-red-500">{errors.stock.message}</p>
+                  )}
                 </div>
 
                 {/* Seller */}
@@ -316,11 +384,14 @@ const UpdateProduct = () => {
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Seller Name</label>
                   <input
                     type="text"
-                    value={seller}
-                    onChange={(e) => setSeller(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base"
+                    {...register('seller')}
+                    className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-neutral-800 border ${
+                      errors.seller ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600 text-base`}
                   />
+                  {errors.seller && (
+                    <p className="mt-1 text-sm text-red-500">{errors.seller.message}</p>
+                  )}
                 </div>
 
                 {/* placeholder to keep grid balanced (empty) */}

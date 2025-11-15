@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import MetaData from '../Layout/MetaData';
 import Sidebar from './SideBar';
 import { getToken } from '../../Utils/helpers';
@@ -8,12 +11,6 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const NewProduct = () => {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [stock, setStock] = useState('');
-  const [seller, setSeller] = useState('');
   const [images, setImages] = useState([]);
   const [imagesPreview, setImagesPreview] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,16 +27,66 @@ const NewProduct = () => {
 
   const navigate = useNavigate();
 
-  const submitHandler = async (e) => {
-    e.preventDefault();
+  // Validation schema
+  const productSchema = yup.object().shape({
+    name: yup
+      .string()
+      .required('Product name is required')
+      .max(100, 'Product name cannot exceed 100 characters')
+      .trim(),
+    price: yup
+      .number()
+      .typeError('Price must be a number')
+      .required('Price is required')
+      .positive('Price must be greater than 0')
+      .max(99999, 'Price cannot exceed 99999'),
+    description: yup
+      .string()
+      .required('Description is required')
+      .min(10, 'Description must be at least 10 characters'),
+    category: yup
+      .string()
+      .required('Please select a category')
+      .oneOf(categories, 'Please select a valid category'),
+    stock: yup
+      .number()
+      .typeError('Stock must be a number')
+      .required('Stock is required')
+      .integer('Stock must be a whole number')
+      .min(0, 'Stock cannot be negative')
+      .max(99999, 'Stock cannot exceed 99999'),
+    seller: yup
+      .string()
+      .required('Seller name is required')
+      .trim(),
+    images: yup
+      .mixed()
+      .test('required', 'At least one image is required', (value) => {
+        return value && value.length > 0;
+      })
+      .test('fileSize', 'Each image must be less than 5MB', (value) => {
+        if (!value || value.length === 0) return true;
+        return value.every((file) => file.size <= 5 * 1024 * 1024);
+      })
+      .test('fileType', 'Only image files are allowed', (value) => {
+        if (!value || value.length === 0) return true;
+        return value.every((file) => file.type.startsWith('image/'));
+      })
+  });
 
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
+    resolver: yupResolver(productSchema),
+    mode: 'onChange'
+  });
+
+  const onSubmit = async (data) => {
     const formData = new FormData();
-    formData.set('name', name);
-    formData.set('price', price);
-    formData.set('description', description);
-    formData.set('category', category);
-    formData.set('stock', stock);
-    formData.set('seller', seller);
+    formData.set('name', data.name);
+    formData.set('price', data.price);
+    formData.set('description', data.description);
+    formData.set('category', data.category);
+    formData.set('stock', data.stock);
+    formData.set('seller', data.seller);
 
     images.forEach((image) => {
       formData.append('images', image);
@@ -71,6 +118,7 @@ const onChange = (e) => {
   const files = Array.from(e.target.files);
   setImages(files); // ✅ Store actual File objects for upload
   setImagesPreview([]); // reset previews
+  setValue('images', files, { shouldValidate: true });
 
   // still show previews
   files.forEach((file) => {
@@ -100,7 +148,7 @@ const onChange = (e) => {
                 New Product
               </h1>
 
-              <form onSubmit={submitHandler} encType="multipart/form-data" className="space-y-10">
+              <form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data" className="space-y-10">
                 {/* Image Section */}
                 <div>
                   <label className="block text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -127,8 +175,13 @@ const onChange = (e) => {
                     onChange={onChange}
                     multiple
                     accept="image/*"
-                    className="w-full mt-4 px-5 py-3 text-base rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white file:mr-4 file:py-3 file:px-5 file:rounded-lg file:border-0 file:text-base file:font-medium file:bg-purple-100 dark:file:bg-purple-900/40 file:text-purple-700 dark:file:text-purple-300 hover:file:bg-purple-200 dark:hover:file:bg-purple-900/60"
+                    className={`w-full mt-4 px-5 py-3 text-base rounded-xl bg-white dark:bg-neutral-800 border ${
+                      errors.images ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                    } text-gray-900 dark:text-white file:mr-4 file:py-3 file:px-5 file:rounded-lg file:border-0 file:text-base file:font-medium file:bg-purple-100 dark:file:bg-purple-900/40 file:text-purple-700 dark:file:text-purple-300 hover:file:bg-purple-200 dark:hover:file:bg-purple-900/60`}
                   />
+                  {errors.images && (
+                    <p className="mt-2 text-sm text-red-500">{errors.images.message}</p>
+                  )}
                 </div>
 
                 {/* Form Fields */}
@@ -141,11 +194,14 @@ const onChange = (e) => {
                     <input
                       type="text"
                       id="name_field"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      className="w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600"
+                      {...register('name')}
+                      className={`w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border ${
+                        errors.name ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                      } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600`}
                     />
+                    {errors.name && (
+                      <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
+                    )}
                   </div>
 
                   {/* Price */}
@@ -156,11 +212,14 @@ const onChange = (e) => {
                     <input
                       type="number"
                       id="price_field"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      required
-                      className="w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600"
+                      {...register('price')}
+                      className={`w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border ${
+                        errors.price ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                      } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600`}
                     />
+                    {errors.price && (
+                      <p className="mt-1 text-sm text-red-500">{errors.price.message}</p>
+                    )}
                   </div>
 
                   {/* Stock */}
@@ -171,11 +230,14 @@ const onChange = (e) => {
                     <input
                       type="number"
                       id="stock_field"
-                      value={stock}
-                      onChange={(e) => setStock(e.target.value)}
-                      required
-                      className="w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600"
+                      {...register('stock')}
+                      className={`w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border ${
+                        errors.stock ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                      } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600`}
                     />
+                    {errors.stock && (
+                      <p className="mt-1 text-sm text-red-500">{errors.stock.message}</p>
+                    )}
                   </div>
 
                   {/* Seller */}
@@ -186,11 +248,14 @@ const onChange = (e) => {
                     <input
                       type="text"
                       id="seller_field"
-                      value={seller}
-                      onChange={(e) => setSeller(e.target.value)}
-                      required
-                      className="w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600"
+                      {...register('seller')}
+                      className={`w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border ${
+                        errors.seller ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                      } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600`}
                     />
+                    {errors.seller && (
+                      <p className="mt-1 text-sm text-red-500">{errors.seller.message}</p>
+                    )}
                   </div>
 
                   {/* Category */}
@@ -200,10 +265,10 @@ const onChange = (e) => {
                     </label>
                     <select
                       id="category_field"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      required
-                      className="w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600"
+                      {...register('category')}
+                      className={`w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border ${
+                        errors.category ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                      } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600`}
                     >
                       <option value="">Select Category</option>
                       {categories.map((cat) => (
@@ -212,6 +277,9 @@ const onChange = (e) => {
                         </option>
                       ))}
                     </select>
+                    {errors.category && (
+                      <p className="mt-1 text-sm text-red-500">{errors.category.message}</p>
+                    )}
                   </div>
 
                   {/* Description */}
@@ -222,11 +290,14 @@ const onChange = (e) => {
                     <textarea
                       id="description_field"
                       rows="5"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      required
-                      className="w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-500/30 text-gray-900 dark:text-white focus:outline-none focus:border-purple-600"
+                      {...register('description')}
+                      className={`w-full px-5 py-3 rounded-xl bg-white dark:bg-neutral-800 border ${
+                        errors.description ? 'border-red-500' : 'border-purple-300 dark:border-purple-500/30'
+                      } text-gray-900 dark:text-white focus:outline-none focus:border-purple-600`}
                     ></textarea>
+                    {errors.description && (
+                      <p className="mt-1 text-sm text-red-500">{errors.description.message}</p>
+                    )}
                   </div>
 
                   {/* Submit Button */}

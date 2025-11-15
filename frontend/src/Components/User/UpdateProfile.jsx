@@ -1,17 +1,18 @@
 import React, {  useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import MetaData from '../Layout/MetaData'
 import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import { getToken } from '../../utils/helpers';
+import { getToken } from '../../Utils/helpers';
 
 
 const UpdateProfile = () => {
     
-    const [name, setName] = useState('')
-    const [email, setEmail] = useState('')
     const [avatar, setAvatar] = useState('')
     const [avatarPreview, setAvatarPreview] = useState('/images/default_avatar.jpg')
     const [error, setError] = useState('')
@@ -19,6 +20,36 @@ const UpdateProfile = () => {
     const [loading, setLoading] = useState(false)
     const [isUpdated, setIsUpdated] = useState(false)
     let navigate = useNavigate();
+
+    // Validation schema
+    const profileSchema = yup.object().shape({
+        name: yup
+            .string()
+            .required('Name is required')
+            .min(2, 'Name must be at least 2 characters')
+            .max(50, 'Name cannot exceed 50 characters')
+            .trim(),
+        email: yup
+            .string()
+            .required('Email is required')
+            .email('Please enter a valid email address'),
+        avatar: yup
+            .mixed()
+            .nullable()
+            .test('fileSize', 'Avatar must be less than 2MB', (value) => {
+                if (!value || !value.size) return true;
+                return value.size <= 2 * 1024 * 1024;
+            })
+            .test('fileType', 'Only image files are allowed', (value) => {
+                if (!value || !value.type) return true;
+                return value.type.startsWith('image/');
+            })
+    });
+
+    const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
+        resolver: yupResolver(profileSchema),
+        mode: 'onChange'
+    });
 
     const getProfile = async () => {
         const config = {
@@ -31,8 +62,10 @@ const UpdateProfile = () => {
             const { data } = await axios.get(`${import.meta.env.VITE_API}/me`, config)
             console.log(data)
             setUser(data.user)
-            setName(data.user.name);
-            setEmail(data.user.email);
+            reset({
+                name: data.user.name || '',
+                email: data.user.email || ''
+            });
             setAvatarPreview(data.user.avatar.url)
             setLoading(false)
         } catch (error) {
@@ -75,27 +108,31 @@ const UpdateProfile = () => {
 
     }, [])
 
-    const submitHandler = (e) => {
-        e.preventDefault();
+    const onSubmit = (data) => {
         const formData = new FormData();
-        formData.set('name', name);
-        formData.set('email', email);
-        formData.set('avatar', avatar);
+        formData.set('name', data.name);
+        formData.set('email', data.email);
+        if (avatar) {
+            formData.set('avatar', avatar);
+        }
         updateProfile(formData)
     }
 
     const onChange = e => {
-        const reader = new FileReader();
+        const file = e.target.files[0];
+        if (file) {
+            setValue('avatar', file, { shouldValidate: true });
+            const reader = new FileReader();
 
-        reader.onload = () => {
-            if (reader.readyState === 2) {
-                setAvatarPreview(reader.result)
-                setAvatar(reader.result)
+            reader.onload = () => {
+                if (reader.readyState === 2) {
+                    setAvatarPreview(reader.result)
+                    setAvatar(reader.result)
+                }
             }
+
+            reader.readAsDataURL(file)
         }
-
-        reader.readAsDataURL(e.target.files[0])
-
     }
     // console.log(user)
 
@@ -106,19 +143,21 @@ const UpdateProfile = () => {
 
             <div className="row wrapper">
                 <div className="col-10 col-lg-5">
-                    <form className="shadow-lg" onSubmit={submitHandler} encType='multipart/form-data'>
+                    <form className="shadow-lg" onSubmit={handleSubmit(onSubmit)} encType='multipart/form-data'>
                         <h1 className="mt-2 mb-5">Update Profile</h1>
 
                         <div className="form-group">
-                            <label htmlFor="email_field">Name</label>
+                            <label htmlFor="name_field">Name</label>
                             <input
-                                type="name"
+                                type="text"
                                 id="name_field"
-                                className="form-control"
+                                className={`form-control ${errors.name ? 'is-invalid' : ''}`}
                                 name='name'
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                {...register('name')}
                             />
+                            {errors.name && (
+                                <div className="invalid-feedback d-block">{errors.name.message}</div>
+                            )}
                         </div>
 
                         <div className="form-group">
@@ -126,11 +165,13 @@ const UpdateProfile = () => {
                             <input
                                 type="email"
                                 id="email_field"
-                                className="form-control"
+                                className={`form-control ${errors.email ? 'is-invalid' : ''}`}
                                 name='email'
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                {...register('email')}
                             />
+                            {errors.email && (
+                                <div className="invalid-feedback d-block">{errors.email.message}</div>
+                            )}
                         </div>
 
                         <div className='form-group'>
@@ -149,7 +190,7 @@ const UpdateProfile = () => {
                                     <input
                                         type='file'
                                         name='avatar'
-                                        className='custom-file-input'
+                                        className={`custom-file-input ${errors.avatar ? 'is-invalid' : ''}`}
                                         id='customFile'
                                         accept='image/*'
                                         onChange={onChange}
@@ -157,6 +198,9 @@ const UpdateProfile = () => {
                                     <label className='custom-file-label' htmlFor='customFile'>
                                         Choose Avatar
                                     </label>
+                                    {errors.avatar && (
+                                        <div className="invalid-feedback d-block">{errors.avatar.message}</div>
+                                    )}
                                 </div>
                             </div>
                         </div>

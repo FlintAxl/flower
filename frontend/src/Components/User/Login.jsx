@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom'
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 
 import Loader from '../Layout/Loader'
 import MetaData from '../Layout/MetaData';
@@ -9,15 +12,29 @@ import axios from 'axios';
 import { authenticate, getUser, firebaseSignIn, firebaseGoogleSignIn, successMsg, errMsg } from '../../Utils/helpers';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false)
     let navigate = useNavigate()
     let location = useLocation()
 
-    const submitHandler = (e) => {
-        e.preventDefault();
-        login(email, password)
+    // Validation schema
+    const loginSchema = yup.object().shape({
+        email: yup
+            .string()
+            .required('Email is required')
+            .email('Please enter a valid email address'),
+        password: yup
+            .string()
+            .required('Password is required')
+            .min(6, 'Password must be at least 6 characters')
+    });
+
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        resolver: yupResolver(loginSchema),
+        mode: 'onChange'
+    });
+
+    const onSubmit = (data) => {
+        login(data.email, data.password)
     }
 
     const login = async (email, password) => {
@@ -213,7 +230,7 @@ const Login = () => {
                     <div className="row wrapper">
                         <div className="col-10 col-lg-5">
                             <form className="shadow-lg"
-                                onSubmit={submitHandler}
+                                onSubmit={handleSubmit(onSubmit)}
                             >
                                 <h1 className="mb-3">Login</h1>
                                 <div className="form-group">
@@ -221,10 +238,12 @@ const Login = () => {
                                     <input
                                         type="email"
                                         id="email_field"
-                                        className="form-control"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                                        {...register('email')}
                                     />
+                                    {errors.email && (
+                                        <div className="invalid-feedback d-block">{errors.email.message}</div>
+                                    )}
                                 </div>
 
                                 <div className="form-group">
@@ -232,10 +251,12 @@ const Login = () => {
                                     <input
                                         type="password"
                                         id="password_field"
-                                        className="form-control"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                                        {...register('password')}
                                     />
+                                    {errors.password && (
+                                        <div className="invalid-feedback d-block">{errors.password.message}</div>
+                                    )}
                                 </div>
 
                                 <Link to="/password/forgot" className="float-right mb-4">Forgot Password?</Link>
