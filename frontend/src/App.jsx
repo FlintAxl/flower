@@ -218,8 +218,14 @@ function App() {
               </ProtectedRoute>} 
               />
 
-
-                  <Route path="/admin/orders" element={<OrdersList />} />
+          <Route
+            path="/admin/orders"
+            element={
+              <ProtectedRoute isAdmin={true}>
+                <OrdersList />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/admin/order/:id" element={<ProcessOrder />} />
         </Routes>
 
