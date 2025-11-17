@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
@@ -218,12 +218,12 @@ const Home = () => {
                       <span className="text-white font-bold text-xl mb-3">
                         ${product.price.toFixed(2)}
                       </span>
-                      <a
-                        href={`/product/${product._id}`}
+                      <Link
+                        to={`/product/${product._id}`}
                         className="px-4 py-2 rounded-full bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 text-white hover:opacity-90 transition-all duration-200"
                       >
                         View Details
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 )) : (
