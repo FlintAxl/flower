@@ -66,7 +66,7 @@ const ProductDetails = ({ addItemToCart, cartItems }) => {
   // fetch product
   const productDetails = async (id) => {
     try {
-      const { data } = await axios.get(`http://localhost:4001/api/v1/product/${id}`);
+      const { data } = await axios.get(`${import.meta.env.VITE_API}/product/${id}`);
       setProduct(data.product || {});
       
       // Check if user has already reviewed this product

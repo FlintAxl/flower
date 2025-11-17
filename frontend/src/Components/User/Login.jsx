@@ -54,7 +54,7 @@ const Login = () => {
                     'Content-Type': 'application/json'
                 }
             }
-            const { data } = await axios.post(`http://localhost:4001/api/v1/login`, { 
+            const { data } = await axios.post(`${import.meta.env.VITE_API}/login`, { 
                 email, 
                 password,
                 firebaseUid: firebaseUser.uid 
@@ -133,7 +133,7 @@ const Login = () => {
                     isGoogleLogin: 'true'
                 };
                 
-                const { data } = await axios.post(`http://localhost:4001/api/v1/login`, loginData, loginConfig);
+                const { data } = await axios.post(`${import.meta.env.VITE_API}/login`, loginData, loginConfig);
                 
                 setLoading(false)
                 authenticate(data, () => {
@@ -180,7 +180,7 @@ const Login = () => {
                     formData.set('avatar', emptyFile);
                     
                     try {
-                        const { data } = await axios.post(`http://localhost:4001/api/v1/register`, formData, registerConfig);
+                        const { data } = await axios.post(`${import.meta.env.VITE_API}/register`, formData, registerConfig);
                         
                         setLoading(false)
                         authenticate(data, () => {

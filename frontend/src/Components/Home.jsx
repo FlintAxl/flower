@@ -62,7 +62,7 @@ const Home = () => {
         setLoading(true);
       }
 
-      let link = `http://localhost:4001/api/v1/products?keyword=${keyword}&page=${page}&price[gte]=${priceRange[0]}&price[lte]=${priceRange[1]}`;
+      let link = `${import.meta.env.VITE_API}/products?keyword=${keyword}&page=${page}&price[gte]=${priceRange[0]}&price[lte]=${priceRange[1]}`;
       if (category) {
         link += `&category=${encodeURIComponent(category)}`;
       }

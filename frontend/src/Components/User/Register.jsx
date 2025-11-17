@@ -87,7 +87,7 @@ const Register = () => {
             // Add Firebase UID to the form data
             userData.set('firebaseUid', firebaseUser.uid);
 
-            const { data } = await axios.post(`http://localhost:4001/api/v1/register`, userData, config)
+            const { data } = await axios.post(`${import.meta.env.VITE_API}/register`, userData, config)
             console.log(data.user)
            
             setLoading(false)
@@ -198,7 +198,7 @@ const Register = () => {
             }
             
             console.log('Sending request to backend...')
-            const { data } = await axios.post(`http://localhost:4001/api/v1/register`, formData, config)
+            const { data } = await axios.post(`${import.meta.env.VITE_API}/register`, formData, config)
             console.log('Backend response received:', data)
             console.log('User data:', data.user)
             
