@@ -25,14 +25,14 @@ const generateOrderReceipt = async ({ order, user }) => {
             drawWatermark(doc);
             drawHeader(doc);
 
-            drawInfoSection(doc, '📋 Order Information', [
+            drawInfoSection(doc, 'Order Information', [
                 { label: 'Order ID', value: order._id },
                 { label: 'Order Date', value: formatDate(order.createdAt) },
                 { label: 'Status', value: order.orderStatus },
                 ...(order.deliveredAt ? [{ label: 'Delivered On', value: formatDate(order.deliveredAt) }] : [])
             ]);
 
-            drawInfoSection(doc, '👤 Customer Information', [
+            drawInfoSection(doc, 'Customer Information', [
                 { label: 'Name', value: user.name },
                 { label: 'Email', value: user.email },
                 { label: 'Phone', value: order.shippingInfo?.phoneNo || 'N/A' },
@@ -42,7 +42,7 @@ const generateOrderReceipt = async ({ order, user }) => {
                 }
             ]);
 
-            drawInfoSection(doc, '💳 Payment Details', [
+            drawInfoSection(doc, 'Payment Details', [
                 { label: 'Method', value: (order.paymentMethod || 'card').toUpperCase() },
                 { label: 'Payment Status', value: order.paymentInfo?.status || (order.paymentMethod === 'cod' ? 'Pending' : 'Paid') },
                 ...(order.paidAt ? [{ label: 'Paid On', value: formatDate(order.paidAt) }] : [])
@@ -54,7 +54,7 @@ const generateOrderReceipt = async ({ order, user }) => {
             doc.moveDown(2);
             doc.fontSize(10)
                 .fillColor('#666666')
-                .text('Thank you for shopping with Botany & Co! 🌸', { align: 'center' });
+                .text('Thank you for shopping with Botany & Co!', { align: 'center' });
 
             doc.end();
 
@@ -90,7 +90,7 @@ const drawHeader = (doc) => {
 
     doc.save();
     doc.rect(30, 30, 550, 100).fill(gradient);
-    doc.fillColor('#ffffff').fontSize(28).text('🌸 Botany & Co', 30, 50, {
+    doc.fillColor('#ffffff').fontSize(28).text('Botany & Co', 30, 50, {
         width: 550,
         align: 'center'
     });
@@ -126,7 +126,7 @@ const drawInfoSection = (doc, title, rows) => {
 };
 
 const drawItemsTable = (doc, items) => {
-    doc.fontSize(14).fillColor('#7c3aed').text('🛍️ Order Items');
+    doc.fontSize(14).fillColor('#7c3aed').text('Order Items');
     doc.moveDown(0.3);
 
     const startY = doc.y;
