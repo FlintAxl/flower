@@ -4,7 +4,7 @@ import MetaData from '../Layout/MetaData'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { getToken } from '../../utils/helpers'
+import { getToken } from '../../Utils/helpers'
 import { motion } from 'framer-motion'
 
 const Profile = () => {
@@ -16,7 +16,7 @@ const Profile = () => {
       headers: { Authorization: `Bearer ${getToken()}` },
     }
     try {
-      const { data } = await axios.get(`http://localhost:4001/api/v1/me`, config)
+      const { data } = await axios.get(`${import.meta.env.VITE_API}/me`, config)
       setUser(data.user)
       setLoading(false)
     } catch (error) {
