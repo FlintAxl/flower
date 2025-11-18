@@ -9,7 +9,7 @@ import MetaData from '../Layout/MetaData';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
-import { authenticate, getUser, firebaseSignIn, firebaseGoogleSignIn, successMsg, errMsg } from '../../Utils/helpers';
+import { authenticate, getUser, firebaseSignIn, firebaseGoogleSignIn, firebaseUpdatePassword, successMsg, errMsg } from '../../Utils/helpers';
 import { Box, Paper, TextField, Button, Typography, IconButton, InputAdornment } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 
@@ -44,11 +44,30 @@ const Login = () => {
         try {
             setLoading(true)
             
-            // First, authenticate with Firebase
-            const firebaseUser = await firebaseSignIn(email, password);
-            console.log('Firebase user signed in:', firebaseUser);
+            let firebaseUser = null;
+            let firebaseAuthSucceeded = false;
             
-            // Then authenticate with your backend
+            // Try to authenticate with Firebase first
+            try {
+                firebaseUser = await firebaseSignIn(email, password);
+                console.log('Firebase user signed in:', firebaseUser);
+                firebaseAuthSucceeded = true;
+            } catch (firebaseError) {
+                // If Firebase fails with wrong password, we'll still try backend
+                // This handles cases where password was reset but Firebase wasn't updated
+                if (firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
+                    console.log('Firebase password mismatch - will try backend authentication');
+                    // Continue to backend authentication
+                } else if (firebaseError.code === 'auth/user-not-found') {
+                    // User doesn't exist in Firebase - try backend anyway
+                    console.log('User not found in Firebase - will try backend');
+                } else {
+                    // For other Firebase errors (network, etc), still try backend
+                    console.log('Firebase error:', firebaseError.code, '- will try backend');
+                }
+            }
+            
+            // Authenticate with your backend (this is the source of truth)
             const config = {
                 headers: {
                     'Content-Type': 'application/json'
@@ -57,9 +76,17 @@ const Login = () => {
             const { data } = await axios.post(`${import.meta.env.VITE_API}/login`, { 
                 email, 
                 password,
-                firebaseUid: firebaseUser.uid 
+                firebaseUid: firebaseUser?.uid || null
             }, config)
             console.log(data)
+            
+            // If backend login succeeded but Firebase failed, log it
+            // User can still login - backend is the source of truth
+            // Note: Firebase password may be out of sync if password was reset
+            // This is expected and doesn't prevent login
+            if (!firebaseAuthSucceeded && data.success) {
+                console.log('Backend login succeeded - Firebase password may be out of sync (this is OK)');
+            }
             
             setLoading(false)
             authenticate(data, () => {
@@ -71,15 +98,9 @@ const Login = () => {
             setLoading(false)
             
             if (error.code) {
-                // Firebase error
+                // Firebase-specific errors that we haven't handled
                 let firebaseErrorMsg = 'Login failed';
                 switch (error.code) {
-                    case 'auth/user-not-found':
-                        firebaseErrorMsg = 'No user found with this email';
-                        break;
-                    case 'auth/wrong-password':
-                        firebaseErrorMsg = 'Incorrect password';
-                        break;
                     case 'auth/invalid-email':
                         firebaseErrorMsg = 'Invalid email address';
                         break;
@@ -87,9 +108,13 @@ const Login = () => {
                         firebaseErrorMsg = 'Too many failed attempts. Please try again later.';
                         break;
                     default:
-                        firebaseErrorMsg = error.message;
+                        firebaseErrorMsg = error.message || 'Login failed';
                 }
                 errMsg(firebaseErrorMsg)
+            } else if (error.response) {
+                // Backend error
+                const backendErrorMsg = error.response.data?.message || 'Invalid user or password';
+                errMsg(backendErrorMsg);
             } else {
                 errMsg("Invalid user or password")
             }

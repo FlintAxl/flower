@@ -2,11 +2,15 @@ const User = require('../models/user')
 const jwt = require("jsonwebtoken")
 
 exports.isAuthenticatedUser = async (req, res, next) => {
+    const authHeader = req.header('Authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Login first to access this resource' })
+    }
 
-    const token  = req.header('Authorization').split(' ')[1];
-     console.log(token)
+    const token = authHeader.split(' ')[1];
+    console.log(token)
    
-
     if (!token) {
         return res.status(401).json({ message: 'Login first to access this resource' })
     }

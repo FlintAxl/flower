@@ -4,7 +4,9 @@ import {
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
     signInWithPopup, 
-    signOut 
+    signOut,
+    updatePassword,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase/config';
 
@@ -103,6 +105,30 @@ export const firebaseGoogleSignIn = async () => {
 export const firebaseSignOut = async () => {
     try {
         await signOut(auth);
+        return true;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Update Firebase password (requires user to be authenticated)
+export const firebaseUpdatePassword = async (newPassword) => {
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('No user is currently signed in');
+        }
+        await updatePassword(user, newPassword);
+        return true;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Send Firebase password reset email
+export const firebaseSendPasswordResetEmail = async (email) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
         return true;
     } catch (error) {
         throw error;
